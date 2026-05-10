@@ -5,6 +5,7 @@ import { PlayerController } from "./PlayerController";
 import { EntityManager } from "./EntityManager";
 import { WebSocketClient } from "../network/WebSocketClient";
 import { HUD } from "../ui/HUD";
+import { AudioManager } from "./AudioManager";
 import { useGameStore } from "../store/gameStore";
 
 const WS_URL = "ws://localhost:8080";
@@ -17,6 +18,7 @@ export class Game {
   private entityManager!: EntityManager;
   private wsClient!: WebSocketClient;
   private hud!: HUD;
+  private audioManager!: AudioManager;
   private animationId = 0;
   private _dir = new THREE.Vector3();
 
@@ -30,6 +32,9 @@ export class Game {
     this.entityManager = new EntityManager(this.sceneManager.scene);
     this.wsClient = new WebSocketClient();
     this.hud = new HUD();
+
+    this.audioManager = new AudioManager();
+    this.audioManager.play();
 
     this.wsClient.connect(WS_URL);
     window.addEventListener("game:restart", this.onRestart);
@@ -81,5 +86,6 @@ export class Game {
     this.inputManager.dispose();
     this.entityManager.dispose();
     this.wsClient.disconnect();
+    this.audioManager.dispose();
   }
 }
