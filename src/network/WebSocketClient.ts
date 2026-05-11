@@ -92,6 +92,10 @@ export class WebSocketClient {
         store.setShotResult(msg.payload);
         break;
 
+      case "troop_shot":
+        window.dispatchEvent(new CustomEvent("enemy:shot", { detail: msg.payload }));
+        break;
+
       case "pressure_changed":
         store.setPressure(msg.payload.pressure_level, msg.payload.encirclement_level);
         break;

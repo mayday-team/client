@@ -124,7 +124,7 @@ export class Game {
 
     this.canvas.addEventListener("mousedown", this.onMouseDown);
     window.addEventListener("game:restart", this.onRestart);
-    window.addEventListener("player:hit", this.onPlayerHit);
+    window.addEventListener("enemy:shot", this.onEnemyShot);
 
     // Enable pointer lock only while playing
     const syncPointerLock = (): void => {
@@ -182,22 +182,22 @@ export class Game {
     }, 800);
   };
 
-  private onPlayerHit = (e: Event): void => {
-    const detail = (e as CustomEvent<{ source_id?: string }>).detail;
-    if (!detail?.source_id) return;
+  private onEnemyShot = (e: Event): void => {
+    const detail = (e as CustomEvent<{
+      origin?: { x: number; y: number; z: number };
+      target?: { x: number; y: number; z: number };
+    }>).detail;
+    if (!detail?.origin) return;
 
-    const troop = useGameStore.getState().troops.find((t) => t.id === detail.source_id);
-    if (!troop) return;
-
-    const origin = new THREE.Vector3(troop.position.x, troop.position.y + 1.15, troop.position.z);
-    const target = this.sceneManager.camera.position.clone();
+    const origin = new THREE.Vector3(detail.origin.x, detail.origin.y, detail.origin.z);
+    const target = detail.target
+      ? new THREE.Vector3(detail.target.x, detail.target.y, detail.target.z)
+      : this.sceneManager.camera.position.clone();
 
     // 적탄이 전면벽에 막히는지 확인 — 창문이 아닌 벽이면 거기서 클리핑
     const wallHit = this.wallBlockPoint(origin, target);
     if (wallHit) {
-      // 벽에 박힘 — 짧게 그리고 HUD 피격 오버레이 취소(같은 task 내라 프레임에 안 보임)
       this.bulletManager.shootHostile(origin, wallHit);
-      this.hud.cancelHitFlash();
       return;
     }
     this.bulletManager.shootHostile(origin, target);
@@ -310,7 +310,7 @@ export class Game {
     this.unsubscribeStore?.();
     this.canvas.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("game:restart", this.onRestart);
-    window.removeEventListener("player:hit", this.onPlayerHit);
+    window.removeEventListener("enemy:shot", this.onEnemyShot);
     this.playerController.dispose();
     this.sceneManager.dispose();
     this.inputManager.dispose();

@@ -313,23 +313,42 @@ export class MapBuilder {
   }
 
   private buildFountain(): void {
+    const fountainStone = new THREE.MeshLambertMaterial({
+      color: 0x7a7264,
+      emissive: 0x1f160d,
+      emissiveIntensity: 0.95,
+      fog: false,
+    });
+    const fountainWater = new THREE.MeshLambertMaterial({
+      color: 0x3f6570,
+      transparent: true,
+      opacity: 0.88,
+      emissive: 0x10242a,
+      emissiveIntensity: 1.2,
+      fog: false,
+    });
+
     // Base platform
-    this.box(14, 0.5, 14, this.matStone, 0, 0.25, 5);
+    this.box(14, 0.5, 14, fountainStone, 0, 0.25, 5);
 
     // Basin wall
-    this.cyl(6.5, 6.5, 1, 32, this.matStone, 0, 0.75, 5);
+    this.cyl(6.5, 6.5, 1, 32, fountainStone, 0, 0.75, 5);
 
     // Water surface
-    const water = new THREE.Mesh(new THREE.CircleGeometry(6, 32), this.matWater);
+    const water = new THREE.Mesh(new THREE.CircleGeometry(6, 32), fountainWater);
     water.rotation.x = -Math.PI / 2;
     water.position.set(0, 0.85, 5);
     this.scene.add(water);
 
     // Center pedestal
-    this.cyl(0.8, 1.0, 4, 12, this.matStone, 0, 2.5, 5);
+    this.cyl(0.8, 1.0, 4, 12, fountainStone, 0, 2.5, 5);
 
     // Upper bowl
-    this.cyl(2.0, 0.5, 0.6, 16, this.matStone, 0, 4.8, 5);
+    this.cyl(2.0, 0.5, 0.6, 16, fountainStone, 0, 4.8, 5);
+
+    const fountainLight = new THREE.PointLight(0xffb06a, 2.2, 22);
+    fountainLight.position.set(0, 4.2, 5);
+    this.scene.add(fountainLight);
   }
 
   private buildFlagpoles(): void {

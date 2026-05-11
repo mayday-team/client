@@ -56,11 +56,20 @@ export interface ShotResultPayload {
   ammo_left: number;
 }
 
+export interface TroopShotPayload {
+  source_id: string;
+  origin: Vector3;
+  target: Vector3;
+  hit: boolean;
+  damage: number;
+}
+
 export type ServerMessage =
   | { type: "welcome"; payload: { server_version: string; server_time: number } }
   | { type: "session_started"; payload: { session_id: string; tick_rate: number; started_at: string } }
   | { type: "state_snapshot"; payload: StateSnapshotPayload }
   | { type: "shot_result"; payload: ShotResultPayload }
+  | { type: "troop_shot"; payload: TroopShotPayload }
   | { type: "damage_taken"; payload: { source: string; source_id: string; damage: number; remaining_hp: number } }
   | { type: "player_died"; payload: { session_id: string; tick: number } }
   | { type: "scenario_phase_changed"; payload: { previous_phase: ScenarioPhase; current_phase: ScenarioPhase; tick: number } }
