@@ -1,68 +1,81 @@
-import { create } from "zustand";
-import type { PlayerState, EnemyState, CivilianState, HelicopterState, GamePhase } from "../types/game";
-
-interface GameOverState {
-  reason: "player_dead" | "historical_event";
-  survivalTime: number;
-  protectedCivilians: number;
-  endingText: string;
-}
+import { createStore } from "zustand/vanilla";
+import type { PlayerSnapshot, TroopSnapshot, ScenarioPhase, UIPhase } from "../types/game";
+import type { SessionEndedPayload, ShotResultPayload, StateSnapshotPayload } from "../types/messages";
 
 interface GameState {
-  player: PlayerState | null;
-  enemies: EnemyState[];
-  civilians: CivilianState[];
-  helicopter: HelicopterState | undefined;
-  phase: GamePhase;
-  elapsedTime: number;
-  wsConnected: boolean;
-  gameOver: GameOverState | null;
+  // UI state
+  uiPhase: UIPhase;
 
-  setSnapshot: (payload: {
-    player: PlayerState;
-    enemies: EnemyState[];
-    civilians: CivilianState[];
-    helicopter?: HelicopterState;
-    phase: GamePhase;
-    elapsedTime: number;
-  }) => void;
-  setGameOver: (payload: GameOverState) => void;
+  // Player
+  player: PlayerSnapshot | null;
+  lastShotResult: ShotResultPayload | null;
+
+  // World
+  troops: TroopSnapshot[];
+  scenarioPhase: ScenarioPhase | null;
+  pressureLevel: number;
+  encirclementLevel: number;
+
+  // Session
+  sessionId: string | null;
+  sessionEnded: SessionEndedPayload | null;
+
+  // Connection
+  wsConnected: boolean;
+
+  // Actions
+  setUiPhase: (phase: UIPhase) => void;
+  applySnapshot: (payload: StateSnapshotPayload) => void;
+  setSessionEnded: (payload: SessionEndedPayload) => void;
+  setShotResult: (payload: ShotResultPayload) => void;
+  setPressure: (pressure: number, encirclement: number) => void;
   setWsConnected: (connected: boolean) => void;
   reset: () => void;
+  /** 재시작 시 사용: 프롤로그 스킵하고 playing 상태로 바로 초기화 */
+  quickRestart: () => void;
 }
 
-export const useGameStore = create<GameState>((set) => ({
+const initial = {
+  uiPhase: "prologue" as UIPhase,
   player: null,
-  enemies: [],
-  civilians: [],
-  helicopter: undefined,
-  phase: "prologue",
-  elapsedTime: 0,
+  lastShotResult: null,
+  troops: [] as TroopSnapshot[],
+  scenarioPhase: null,
+  pressureLevel: 0,
+  encirclementLevel: 0,
+  sessionId: null,
+  sessionEnded: null,
   wsConnected: false,
-  gameOver: null,
+};
 
-  setSnapshot: (payload) =>
+export const useGameStore = createStore<GameState>((set) => ({
+  ...initial,
+
+  setUiPhase: (uiPhase) => set({ uiPhase }),
+
+  applySnapshot: (payload) =>
     set({
       player: payload.player,
-      enemies: payload.enemies,
-      civilians: payload.civilians,
-      helicopter: payload.helicopter,
-      phase: payload.phase,
-      elapsedTime: payload.elapsedTime,
+      troops: payload.troops,
+      scenarioPhase: payload.scenario_phase,
+      pressureLevel: payload.pressure_level,
+      encirclementLevel: payload.encirclement_level,
+      sessionId: payload.session_id,
     }),
 
-  setGameOver: (payload) => set({ gameOver: payload }),
+  setSessionEnded: (payload) => set({ sessionEnded: payload, uiPhase: "ending" }),
 
-  setWsConnected: (connected) => set({ wsConnected: connected }),
+  setShotResult: (payload) => set({ lastShotResult: payload }),
 
-  reset: () =>
+  setPressure: (pressureLevel, encirclementLevel) => set({ pressureLevel, encirclementLevel }),
+
+  setWsConnected: (wsConnected) => set({ wsConnected }),
+
+  reset: () => set({ ...initial }),
+
+  quickRestart: () =>
     set({
-      player: null,
-      enemies: [],
-      civilians: [],
-      helicopter: undefined,
-      phase: "prologue",
-      elapsedTime: 0,
-      gameOver: null,
+      ...initial,
+      uiPhase: "playing",
     }),
 }));

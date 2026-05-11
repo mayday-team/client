@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { MapBuilder } from "./MapBuilder";
 
 export class SceneManager {
   readonly scene: THREE.Scene;
@@ -16,7 +17,9 @@ export class SceneManager {
       0.1,
       500,
     );
-    this.camera.position.set(0, 1.7, 0);
+    // Inside the building, facing the plaza through the windows
+    this.camera.position.set(0, 1.7, -36);
+    this.camera.rotation.y = Math.PI;
 
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -25,6 +28,7 @@ export class SceneManager {
 
     this.buildLights();
     this.buildGround();
+    new MapBuilder(this.scene);
 
     window.addEventListener("resize", this.onResize);
   }
