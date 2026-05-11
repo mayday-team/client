@@ -7,9 +7,22 @@ export class WebSocketClient {
   private pendingStart = false;
   private lastUrl = "";
 
-  connect(url: string): void {
+  connect(url?: string): void {
+    if (!url) {
+      useGameStore.getState().setWsConnected(false);
+      console.warn("[WS] URL is not configured — starting without server");
+      return;
+    }
+
     this.lastUrl = url;
-    this.ws = new WebSocket(url);
+    try {
+      this.ws = new WebSocket(url);
+    } catch (error) {
+      this.ws = null;
+      useGameStore.getState().setWsConnected(false);
+      console.warn("[WS] Failed to create connection:", error);
+      return;
+    }
 
     this.ws.onopen = () => {
       useGameStore.getState().setWsConnected(true);

@@ -30,6 +30,8 @@ export class Game {
   private offlineSoldiers!: OfflineSoldiers;
 
   private animationId = 0;
+  private offlineStartTimer = 0;
+  private unsubscribeStore?: () => void;
   private clock = new THREE.Clock();
   private canvas!: HTMLCanvasElement;
 
@@ -97,9 +99,11 @@ export class Game {
     window.addEventListener("game:restart", this.onRestart);
 
     // Enable pointer lock only while playing
-    useGameStore.subscribe((state) => {
-      this.playerController.setEnabled(state.uiPhase === "playing");
-    });
+    const syncPointerLock = (): void => {
+      this.playerController.setEnabled(useGameStore.getState().uiPhase === "playing");
+    };
+    syncPointerLock();
+    this.unsubscribeStore = useGameStore.subscribe(syncPointerLock);
 
     this.clock.start();
     this.loop();
@@ -131,6 +135,13 @@ export class Game {
 
   private onRestart = (): void => {
     this.wsClient.reconnect();
+    clearTimeout(this.offlineStartTimer);
+    this.offlineStartTimer = window.setTimeout(() => {
+      const store = useGameStore.getState();
+      if (!store.wsConnected && store.uiPhase !== "playing") {
+        store.setUiPhase("playing");
+      }
+    }, 800);
   };
 
   private loop = (): void => {
@@ -229,8 +240,11 @@ export class Game {
 
   dispose(): void {
     cancelAnimationFrame(this.animationId);
+    clearTimeout(this.offlineStartTimer);
+    this.unsubscribeStore?.();
     this.canvas.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("game:restart", this.onRestart);
+    this.playerController.dispose();
     this.sceneManager.dispose();
     this.inputManager.dispose();
     this.entityManager.dispose();
