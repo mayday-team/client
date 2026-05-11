@@ -100,7 +100,7 @@ export class WebSocketClient {
         break;
 
       case "damage_taken":
-        console.log("[WS] Damage taken:", msg.payload.damage);
+        window.dispatchEvent(new CustomEvent("player:hit", { detail: { damage: msg.payload.damage } }));
         break;
 
       case "error":

@@ -9,10 +9,11 @@ import { AudioManager } from "./AudioManager";
 import { LocalMovement } from "./LocalMovement";
 import { BulletManager } from "./BulletManager";
 import { HelicopterAI } from "./HelicopterAI";
+import { ViewModel } from "./ViewModel";
+import { OfflineSoldiers } from "./OfflineSoldiers";
 import { useGameStore } from "../store/gameStore";
 
 const WS_URL = import.meta.env.VITE_WS_URL;
-const EYE_HEIGHT = 1.7;
 
 export class Game {
   private sceneManager!: SceneManager;
@@ -25,6 +26,8 @@ export class Game {
   private localMovement!: LocalMovement;
   private bulletManager!: BulletManager;
   private helicopterAI!: HelicopterAI;
+  private viewModel!: ViewModel;
+  private offlineSoldiers!: OfflineSoldiers;
 
   private animationId = 0;
   private clock = new THREE.Clock();
@@ -34,7 +37,25 @@ export class Game {
   private inputSeq = 0;
   private shootSeq = 0;
 
+  // 패배 보장 타이머 (서버 미연결 시 fallback)
+  private playingElapsed = 0;
+  private readonly MAX_PLAY_SECONDS = 900;
+
+  // 엄폐 상태 추적
+  private wasInCover = false;
+
   private _lookDir = new THREE.Vector3();
+
+  // 2층 창문 x 좌표 (MapBuilder WIN_X 와 동일)
+  private static readonly WIN_X = [-9, -4.5, 0, 4.5, 9] as const;
+  private static readonly WIN_WALL_Z = -33.4;
+
+  private isInCover(pos: THREE.Vector3): boolean {
+    // 전면벽 1.5m 이상 안쪽이면 무조건 엄폐
+    if (pos.z < Game.WIN_WALL_Z - 1.5) return true;
+    // 전면벽 근처지만 창문 사이 벽 앞이면 엄폐
+    return !Game.WIN_X.some(wx => Math.abs(pos.x - wx) < 1.3);
+  }
 
   init(): void {
     this.canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
@@ -54,6 +75,20 @@ export class Game {
     );
     this.bulletManager = new BulletManager(this.sceneManager.scene);
     this.helicopterAI = new HelicopterAI(this.sceneManager.scene);
+    this.viewModel = new ViewModel(this.sceneManager.viewmodelScene);
+    this.offlineSoldiers = new OfflineSoldiers();
+
+    // 헬기 총알 피격 콜백 — 오프라인 모드에서 클라이언트 HP 감소
+    this.helicopterAI.onHitPlayer = (damage) => {
+      if (useGameStore.getState().wsConnected) return;
+      const store = useGameStore.getState();
+      const newHp = store.clientHp - damage;
+      store.setClientHp(newHp);
+      window.dispatchEvent(new CustomEvent("player:hit"));
+      if (newHp <= 0) {
+        setTimeout(() => useGameStore.getState().setUiPhase("ending"), 1200);
+      }
+    };
 
     this.audioManager.play();
     this.wsClient.connect(WS_URL);
@@ -78,6 +113,7 @@ export class Game {
 
     // Visual bullet (always)
     this.bulletManager.shoot(origin, this._lookDir);
+    this.viewModel.flash();
 
     // Server shoot message (when connected)
     if (useGameStore.getState().wsConnected) {
@@ -104,15 +140,35 @@ export class Game {
 
     const { player, troops, wsConnected } = useGameStore.getState();
 
-    // ── Player movement ───────────────────────────────────────────────────
+    // ── Player movement (2층 y 고정) ─────────────────────────────────────
+    const SECOND_FLOOR_EYE = 7.0;
+    const FLOOR_BOUNDS = { xMin: -12.5, xMax: 12.5, zMin: -45.0, zMax: -34.5 };
     if (player && wsConnected) {
       this.sceneManager.camera.position.set(
         player.position.x,
-        player.position.y + EYE_HEIGHT,
+        SECOND_FLOOR_EYE,
         player.position.z,
       );
     } else {
       this.localMovement.update(delta);
+    }
+    // 항상 2층 내부로 클램핑 (서버 위치 무시하고 강제 고정)
+    const cam = this.sceneManager.camera;
+    cam.position.x = Math.max(FLOOR_BOUNDS.xMin, Math.min(FLOOR_BOUNDS.xMax, cam.position.x));
+    cam.position.z = Math.max(FLOOR_BOUNDS.zMin, Math.min(FLOOR_BOUNDS.zMax, cam.position.z));
+    cam.position.y = SECOND_FLOOR_EYE;
+
+    // ── 엄폐 감지 — 창문이 아닌 벽 뒤면 서버 HP 동결 ──────────────────────
+    const nowInCover = this.isInCover(cam.position);
+    if (nowInCover !== this.wasInCover) {
+      if (nowInCover) {
+        // 엄폐 진입: 현재 HP를 동결값으로 저장
+        useGameStore.getState().setCoverState(true, player?.hp ?? 100);
+      } else {
+        // 엄폐 해제: 실제 서버 HP 복원
+        useGameStore.getState().setCoverState(false);
+      }
+      this.wasInCover = nowInCover;
     }
 
     // ── Send input to server ──────────────────────────────────────────────
@@ -146,8 +202,23 @@ export class Game {
       });
     }
 
+    // ── 패배 보장 타이머 (서버 없이도 추모 경험이 끝나도록) ───────────────────
+    const { uiPhase } = useGameStore.getState();
+    if (uiPhase === "playing") {
+      this.playingElapsed += delta;
+      if (this.playingElapsed >= this.MAX_PLAY_SECONDS) {
+        useGameStore.getState().setUiPhase("ending");
+      }
+    } else {
+      this.playingElapsed = 0;
+    }
+
     // ── Update entities ───────────────────────────────────────────────────
-    this.entityManager.updateTroops(troops);
+    // 서버 미연결 시 오프라인 데모 병사 사용
+    const activeTroops = wsConnected && troops.length > 0
+      ? troops
+      : this.offlineSoldiers.update(delta);
+    this.entityManager.updateTroops(activeTroops);
 
     // ── Client-side systems ───────────────────────────────────────────────
     this.bulletManager.update(delta);

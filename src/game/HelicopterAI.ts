@@ -6,27 +6,43 @@ interface EnemyBullet {
   life: number;
 }
 
-const ORBIT_RADIUS = 50;
-const ORBIT_HEIGHT = 30;
-const ORBIT_SPEED = 0.22;      // rad/s
+interface MuzzleFlash {
+  light: THREE.PointLight;
+  life: number;
+}
+
+// 도청 메인 블록 외벽 경계 — 이 안으로 들어온 총알은 제거
+const BLDG_MIN = new THREE.Vector3(-13.5, 0,  -47);
+const BLDG_MAX = new THREE.Vector3( 13.5, 17, -32);
+
+const ORBIT_RADIUS = 35;
+const ORBIT_HEIGHT = 20;
+const ORBIT_SPEED = 0.28;
 const ORBIT_CENTER = new THREE.Vector3(0, 0, -10);
-const FIRE_INTERVAL = 3.5;     // seconds between shots
-const BULLET_SPEED = 28;
+const FIRE_INTERVAL = 4.0;    // 4초 간격 — 30초 생존 가능
+const BULLET_SPEED = 25;       // 느려서 시각적으로 잘 보임
+const HIT_RADIUS = 1.0;
+const DAMAGE_PER_HIT = 20;
 
 export class HelicopterAI {
   private group = new THREE.Group();
   private mainRotor!: THREE.Group;
   private tailRotor!: THREE.Group;
   private bullets: EnemyBullet[] = [];
+  private muzzleFlashes: MuzzleFlash[] = [];
+  private spotlight!: THREE.SpotLight;
+
+  onHitPlayer: ((damage: number) => void) | null = null;
 
   private orbitAngle = 0;
   private fireTimer = 0;
 
-  private readonly bulletGeo = new THREE.SphereGeometry(0.18, 4, 4);
-  private readonly bulletMat = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+  private readonly bulletGeo = new THREE.SphereGeometry(0.22, 4, 4);
+  private readonly bulletMat = new THREE.MeshBasicMaterial({ color: 0xff2200 });
 
   constructor(private scene: THREE.Scene) {
     this.buildMesh();
+    this.buildSpotlight();
     scene.add(this.group);
 
     // Start at orbit position
@@ -35,6 +51,23 @@ export class HelicopterAI {
       ORBIT_HEIGHT,
       ORBIT_CENTER.z,
     );
+  }
+
+  private buildSpotlight(): void {
+    // 서치라이트 — 헬기에서 지상을 훑는 빛
+    this.spotlight = new THREE.SpotLight(0xffe8c0, 4.0, 60, 0.28, 0.6);
+    this.spotlight.position.set(0, -1.5, 0);
+    this.group.add(this.spotlight);
+
+    const target = new THREE.Object3D();
+    target.position.set(0, -20, 0);
+    this.group.add(target);
+    this.spotlight.target = target;
+
+    // 항법등 — 헬기 몸통을 밝혀 어둠 속에서도 식별 가능하게
+    const navLight = new THREE.PointLight(0xff4400, 6.0, 25);
+    navLight.position.set(0, 0, 0);
+    this.group.add(navLight);
   }
 
   private mesh(
@@ -50,11 +83,11 @@ export class HelicopterAI {
   }
 
   private buildMesh(): void {
-    const olive = new THREE.MeshLambertMaterial({ color: 0x3d4a2d });
-    const dark = new THREE.MeshLambertMaterial({ color: 0x1e2616 });
-    const glass = new THREE.MeshLambertMaterial({ color: 0x5a8a9a, transparent: true, opacity: 0.55 });
-    const metal = new THREE.MeshLambertMaterial({ color: 0x555544 });
-    const black = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    const olive = new THREE.MeshLambertMaterial({ color: 0x3d4a2d, emissive: new THREE.Color(0x1e2616), emissiveIntensity: 2.0 });
+    const dark  = new THREE.MeshLambertMaterial({ color: 0x1e2616, emissive: new THREE.Color(0x0e1208), emissiveIntensity: 2.0 });
+    const glass = new THREE.MeshLambertMaterial({ color: 0x5a8a9a, transparent: true, opacity: 0.55, emissive: new THREE.Color(0x1a2a30), emissiveIntensity: 1.5 });
+    const metal = new THREE.MeshLambertMaterial({ color: 0x555544, emissive: new THREE.Color(0x181814), emissiveIntensity: 2.0 });
+    const black = new THREE.MeshLambertMaterial({ color: 0x111111, emissive: new THREE.Color(0x080808), emissiveIntensity: 2.0 });
 
     // ── Fuselage ────────────────────────────────────────────────────────
     this.mesh(new THREE.BoxGeometry(2.2, 1.4, 5.5), olive, 0, 0, -0.5);
@@ -181,18 +214,63 @@ export class HelicopterAI {
       b.mesh.position.addScaledVector(b.velocity, delta);
       b.life -= delta;
 
-      if (b.life <= 0 || b.mesh.position.y < 0) {
+      const p = b.mesh.position;
+      const hitBuilding =
+        p.x > BLDG_MIN.x && p.x < BLDG_MAX.x &&
+        p.y > BLDG_MIN.y && p.y < BLDG_MAX.y &&
+        p.z > BLDG_MIN.z && p.z < BLDG_MAX.z;
+
+      // 플레이어 히트박스: 노출 상태에서만 피격
+      const distToPlayer = p.distanceTo(playerPos);
+      const hitPlayer = distToPlayer < HIT_RADIUS && this.isExposed(playerPos);
+
+      if (b.life <= 0 || p.y < 0 || hitBuilding || hitPlayer) {
         this.scene.remove(b.mesh);
         this.bullets.splice(i, 1);
+        if (hitPlayer) this.onHitPlayer?.(DAMAGE_PER_HIT);
+      }
+    }
+
+    // ── Update muzzle flashes ────────────────────────────────────────────
+    for (let i = this.muzzleFlashes.length - 1; i >= 0; i--) {
+      const f = this.muzzleFlashes[i];
+      f.life -= delta;
+      if (f.life <= 0) {
+        this.scene.remove(f.light);
+        this.muzzleFlashes.splice(i, 1);
       }
     }
   }
 
+  // 2층 창문 x 좌표 (MapBuilder WIN_X 와 일치)
+  private static readonly WIN_X = [-9, -4.5, 0, 4.5, 9] as const;
+  private static readonly WIN_WALL_Z = -33.4; // 전면 내벽 z
+
+  /** 플레이어가 창문 앞에 노출돼 있는지 확인 */
+  private isExposed(playerPos: THREE.Vector3): boolean {
+    if (playerPos.z < HelicopterAI.WIN_WALL_Z - 1.5) return false; // 벽 뒤 깊숙이
+    return HelicopterAI.WIN_X.some(wx => Math.abs(playerPos.x - wx) < 1.3);
+  }
+
+  /** 가장 가까운 창문 위치 반환 */
+  private nearestWindow(playerPos: THREE.Vector3): THREE.Vector3 {
+    let best = HelicopterAI.WIN_X[0] as number;
+    let bestDist = Infinity;
+    for (const wx of HelicopterAI.WIN_X) {
+      const d = Math.abs(playerPos.x - wx);
+      if (d < bestDist) { bestDist = d; best = wx; }
+    }
+    return new THREE.Vector3(best, 7.0, HelicopterAI.WIN_WALL_Z);
+  }
+
   private fireAt(target: THREE.Vector3): void {
+    // 엄폐 중이면 가장 가까운 창문으로 사격 (벽에 맞게)
+    const aimTarget = this.isExposed(target) ? target : this.nearestWindow(target);
+
     const origin = this.group.position.clone();
     origin.y -= 0.6;
 
-    const dir = new THREE.Vector3().subVectors(target, origin).normalize();
+    const dir = new THREE.Vector3().subVectors(aimTarget, origin).normalize();
     const mesh = new THREE.Mesh(this.bulletGeo, this.bulletMat);
     mesh.position.copy(origin);
     this.scene.add(mesh);
@@ -202,11 +280,19 @@ export class HelicopterAI {
       velocity: dir.multiplyScalar(BULLET_SPEED),
       life: 4,
     });
+
+    // 총구 화염 플래시
+    const flash = new THREE.PointLight(0xff4400, 8.0, 15);
+    flash.position.copy(origin);
+    this.scene.add(flash);
+    this.muzzleFlashes.push({ light: flash, life: 0.08 });
   }
 
   dispose(): void {
     this.scene.remove(this.group);
     for (const b of this.bullets) this.scene.remove(b.mesh);
+    for (const f of this.muzzleFlashes) this.scene.remove(f.light);
     this.bullets = [];
+    this.muzzleFlashes = [];
   }
 }

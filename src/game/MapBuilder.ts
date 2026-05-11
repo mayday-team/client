@@ -3,28 +3,30 @@ import * as THREE from "three";
 export class MapBuilder {
   private readonly BZ = -40;
 
-  private readonly matBuilding = new THREE.MeshLambertMaterial({ color: 0xd4c5a9 });
-  private readonly matStone = new THREE.MeshLambertMaterial({ color: 0xb8aa95 });
-  private readonly matRoof = new THREE.MeshLambertMaterial({ color: 0x6a7a6a });
-  private readonly matPlaza = new THREE.MeshLambertMaterial({ color: 0xc8c0b0 });
-  private readonly matRoad = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
-  private readonly matWindow = new THREE.MeshLambertMaterial({ color: 0x2a3a50 });
-  private readonly matDoor = new THREE.MeshLambertMaterial({ color: 0x1a1a2a });
-  private readonly matTrunk = new THREE.MeshLambertMaterial({ color: 0x5c3d1a });
-  private readonly matLeaves = new THREE.MeshLambertMaterial({ color: 0x2d5a1b });
-  private readonly matPole = new THREE.MeshLambertMaterial({ color: 0xaaaaaa });
-  private readonly matFlag = new THREE.MeshLambertMaterial({ color: 0xcd2e3a, side: THREE.DoubleSide });
-  private readonly matWater = new THREE.MeshLambertMaterial({ color: 0x4488aa, transparent: true, opacity: 0.75 });
-  private readonly matSidewalk = new THREE.MeshLambertMaterial({ color: 0xa8a098 });
-  private readonly matPath = new THREE.MeshLambertMaterial({ color: 0xd0c8b8 });
-  private readonly matGrass = new THREE.MeshLambertMaterial({ color: 0x4a6830 });
-  private readonly matMark = new THREE.MeshLambertMaterial({ color: 0xffffff });
-  private readonly matCurb = new THREE.MeshLambertMaterial({ color: 0x888888 });
+  // 그을리고 전쟁 피해를 입은 1980년 5월 27일 새벽의 색상
+  private readonly matBuilding = new THREE.MeshLambertMaterial({ color: 0x5a5248 });
+  private readonly matStone = new THREE.MeshLambertMaterial({ color: 0x3e3a36 });
+  private readonly matRoof = new THREE.MeshLambertMaterial({ color: 0x2a3028 });
+  private readonly matPlaza = new THREE.MeshLambertMaterial({ color: 0x2a2820 });
+  private readonly matRoad = new THREE.MeshLambertMaterial({ color: 0x1a1a18 });
+  private readonly matWindow = new THREE.MeshLambertMaterial({ color: 0x0a1018 });
+  private readonly matDoor = new THREE.MeshLambertMaterial({ color: 0x080810 });
+  private readonly matTrunk = new THREE.MeshLambertMaterial({ color: 0x2e1e0c });
+  private readonly matLeaves = new THREE.MeshLambertMaterial({ color: 0x141a0c });
+  private readonly matPole = new THREE.MeshLambertMaterial({ color: 0x555555 });
+  private readonly matFlag = new THREE.MeshLambertMaterial({ color: 0x6a1010, side: THREE.DoubleSide });
+  private readonly matWater = new THREE.MeshLambertMaterial({ color: 0x1a2428, transparent: true, opacity: 0.75 });
+  private readonly matSidewalk = new THREE.MeshLambertMaterial({ color: 0x302e2a });
+  private readonly matPath = new THREE.MeshLambertMaterial({ color: 0x2c2a24 });
+  private readonly matGrass = new THREE.MeshLambertMaterial({ color: 0x1a1e10 });
+  private readonly matMark = new THREE.MeshLambertMaterial({ color: 0x888880 });
+  private readonly matCurb = new THREE.MeshLambertMaterial({ color: 0x383633 });
 
   constructor(private scene: THREE.Scene) {
     this.buildGrassPatches();
     this.buildProvincialHall();
     this.buildInterior();
+    this.buildSecondFloor();
     this.buildPlaza();
     this.buildFountain();
     this.buildFlagpoles();
@@ -33,6 +35,7 @@ export class MapBuilder {
     this.buildCityBuildings();
     this.buildProtestScene();
     this.addInteriorLights();
+    this.addPlazaLights();
   }
 
   private add(mesh: THREE.Mesh): THREE.Mesh {
@@ -410,6 +413,276 @@ export class MapBuilder {
     });
   }
 
+  // ── 2층 내부 (메인 무대) ───────────────────────────────────────────────────
+
+  private buildSecondFloor(): void {
+    const { BZ } = this;
+    const FLOOR_Y  = 5.30;  // 1층 천장 = 2층 바닥
+    const CEIL_Y   = 10.60;
+    const WALL_Z   = BZ + 6.6;  // 전면 내벽 (1층과 동일)
+    const WALL_W   = 28;
+    const WALL_T   = 0.45;
+    const DEPTH    = 14;
+
+    // 2층 창문 위치 — 1층과 동일 x, floor 1 (yLo=6.0, yHi=8.0)
+    const WIN_X  = [-9, -4.5, 0, 4.5, 9] as const;
+    const WIN_W  = 1.5;
+    const WIN_YLO = 6.0;
+    const WIN_YHI = 8.0;
+
+    const wallMat  = new THREE.MeshLambertMaterial({ color: 0x6a5e50, side: THREE.DoubleSide,
+      emissive: new THREE.Color(0x2a1e14), emissiveIntensity: 0.8 });
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0x5a4832,
+      emissive: new THREE.Color(0x221808), emissiveIntensity: 0.9 });
+    const ceilMat  = new THREE.MeshLambertMaterial({ color: 0x5a5248, side: THREE.DoubleSide,
+      emissive: new THREE.Color(0x1e1a16), emissiveIntensity: 0.8 });
+
+    // ── 바닥 ─────────────────────────────────────────────────────────────
+    const floor2 = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W, DEPTH), floorMat);
+    floor2.rotation.x = -Math.PI / 2;
+    floor2.position.set(0, FLOOR_Y + 0.02, BZ);
+    floor2.receiveShadow = true;
+    this.scene.add(floor2);
+
+    // ── 천장 ──────────────────────────────────────────────────────────────
+    const ceil2 = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W, DEPTH), ceilMat);
+    ceil2.rotation.x = Math.PI / 2;
+    ceil2.position.set(0, CEIL_Y, BZ);
+    this.scene.add(ceil2);
+
+    // ── 전면 벽 (창문 개구부 포함) ────────────────────────────────────────
+    const solidX: [number, number][] = [];
+    let px = -WALL_W / 2;
+    for (const wx of WIN_X) {
+      const wl = wx - WIN_W / 2;
+      const wr = wx + WIN_W / 2;
+      if (px < wl) solidX.push([px, wl]);
+      px = wr;
+    }
+    if (px < WALL_W / 2) solidX.push([px, WALL_W / 2]);
+
+    // 창문 아래/위 수평 띠
+    this.panel(wallMat, -WALL_W/2, WALL_W/2, FLOOR_Y, WIN_YLO, WALL_Z, WALL_T);
+    this.panel(wallMat, -WALL_W/2, WALL_W/2, WIN_YHI, CEIL_Y,  WALL_Z, WALL_T);
+    // 창문 사이 수직 기둥
+    for (const [xs, xe] of solidX) {
+      this.panel(wallMat, xs, xe, WIN_YLO, WIN_YHI, WALL_Z, WALL_T);
+    }
+
+    // ── 후면·측면 벽 ──────────────────────────────────────────────────────
+    this.panel(wallMat, -WALL_W/2, WALL_W/2, FLOOR_Y, CEIL_Y, BZ - 7 + 0.3, WALL_T);
+    for (const sx of [-WALL_W/2 + 0.3, WALL_W/2 - 0.3] as const) {
+      const sw = new THREE.Mesh(
+        new THREE.BoxGeometry(WALL_T, CEIL_Y - FLOOR_Y, DEPTH), wallMat,
+      );
+      sw.position.set(sx, (FLOOR_Y + CEIL_Y) / 2, BZ);
+      sw.castShadow = true;
+      this.scene.add(sw);
+    }
+
+    // ── 창틀 턱 (2층) ────────────────────────────────────────────────────
+    const sillMat = new THREE.MeshLambertMaterial({ color: 0x6a5a48,
+      emissive: new THREE.Color(0x241c10), emissiveIntensity: 0.9 });
+    for (const wx of WIN_X) {
+      const sill = new THREE.Mesh(new THREE.BoxGeometry(WIN_W + 0.3, 0.10, WALL_T + 0.3), sillMat);
+      sill.position.set(wx, WIN_YLO - 0.05, WALL_Z);
+      sill.receiveShadow = true;
+      this.scene.add(sill);
+    }
+
+    // ── 2층 창문 모래주머니 ────────────────────────────────────────────────
+    const sbMat = new THREE.MeshLambertMaterial({ color: 0x5a4820,
+      emissive: new THREE.Color(0x1a1408), emissiveIntensity: 0.7 });
+    WIN_X.forEach((wx, i) => {
+      for (let r = 0; r < 2; r++) {
+        const g = new THREE.Group();
+        g.position.set(wx, FLOOR_Y + 0.14 + r * 0.27, WALL_Z + 0.55);
+        g.rotation.y = (i % 3 - 1) * 0.12;
+        const bag = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.9, 4, 8), sbMat);
+        bag.rotation.z = Math.PI / 2;
+        bag.castShadow = true;
+        g.add(bag);
+        this.scene.add(g);
+      }
+      const g2 = new THREE.Group();
+      g2.position.set(wx + 0.1, FLOOR_Y + 0.68, WALL_Z + 0.50);
+      g2.rotation.y = (i % 2) * 0.2 - 0.1;
+      const top = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.78, 4, 8), sbMat);
+      top.rotation.z = Math.PI / 2;
+      top.castShadow = true;
+      g2.add(top);
+      this.scene.add(g2);
+    });
+
+    // ── 2층 전용 조명 (랜턴 6개, 화염 반사 4개) ───────────────────────────
+    const lightY = FLOOR_Y + 2.2; // 바닥에서 2.2m 위 (눈높이 근처)
+
+    // 창문 쪽 화염 반사 (앞쪽)
+    const fireRefl = new THREE.PointLight(0xff4400, 2.5, 18);
+    fireRefl.position.set(0, lightY, WALL_Z + 1.5);
+    this.scene.add(fireRefl);
+
+    // 중앙 랜턴
+    const center = new THREE.PointLight(0xff7733, 2.0, 20);
+    center.position.set(0, lightY, BZ);
+    this.scene.add(center);
+
+    // 좌우 랜턴
+    for (const x of [-7, 7]) {
+      const l = new THREE.PointLight(0xff6622, 1.6, 16);
+      l.position.set(x, lightY, BZ);
+      this.scene.add(l);
+    }
+
+    // 후방 랜턴 2개
+    for (const x of [-4, 4]) {
+      const l = new THREE.PointLight(0xff5511, 1.2, 14);
+      l.position.set(x, lightY, BZ - 3.5);
+      this.scene.add(l);
+    }
+
+    // ── 가구·소품 ────────────────────────────────────────────────────────
+    this.buildSecondFloorProps(FLOOR_Y, BZ);
+  }
+
+  private buildSecondFloorProps(fy: number, BZ: number): void {
+    const woodMat  = new THREE.MeshLambertMaterial({ color: 0x2e1c0c,
+      emissive: new THREE.Color(0x0e0804), emissiveIntensity: 0.8 });
+    const metalMat = new THREE.MeshLambertMaterial({ color: 0x2a2820,
+      emissive: new THREE.Color(0x080807), emissiveIntensity: 0.9 });
+    const creteMat = new THREE.MeshLambertMaterial({ color: 0x3a3530,
+      emissive: new THREE.Color(0x0e0c0b), emissiveIntensity: 0.7 });
+    const sbMat    = new THREE.MeshLambertMaterial({ color: 0x5a4820,
+      emissive: new THREE.Color(0x1a1408), emissiveIntensity: 0.7 });
+    const paperMat = new THREE.MeshLambertMaterial({ color: 0x9a9070,
+      emissive: new THREE.Color(0x28261e), emissiveIntensity: 0.8 });
+
+    // 뒤집힌 책상들 (엄폐물)
+    const desks: Array<{ x: number; z: number; ry: number }> = [
+      { x: -9,   z: BZ + 4.0, ry:  0.30 },
+      { x: -4.5, z: BZ + 4.5, ry: -0.20 },
+      { x:  4.5, z: BZ + 4.2, ry:  0.15 },
+      { x:  9,   z: BZ + 3.8, ry: -0.38 },
+      { x:  0,   z: BZ + 1.5, ry:  0.10 },
+    ];
+    for (const d of desks) {
+      const top = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.08, 0.75), woodMat);
+      top.position.set(d.x, fy + 0.52, d.z);
+      top.rotation.y = d.ry;
+      top.castShadow = true;
+      this.scene.add(top);
+      for (const [lx, lz] of [[-0.58, -0.32], [0.58, -0.32], [-0.58, 0.32], [0.58, 0.32]]) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.55, 0.05), metalMat);
+        const cos = Math.cos(d.ry), sin = Math.sin(d.ry);
+        leg.position.set(
+          d.x + lx * cos - lz * sin,
+          fy + 0.26,
+          d.z + lx * sin + lz * cos,
+        );
+        this.scene.add(leg);
+      }
+    }
+
+    // 철제 캐비닛 (무거운 엄폐물)
+    const cabinets: Array<{ x: number; z: number }> = [
+      { x: -11.5, z: BZ + 1.5 },
+      { x:  11.5, z: BZ + 1.5 },
+      { x:  -6.5, z: BZ - 1.0 },
+      { x:   6.5, z: BZ - 1.0 },
+      { x:  -2.5, z: BZ + 1.0 },
+    ];
+    for (const c of cabinets) {
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(0.58, 1.25, 0.45), metalMat);
+      cab.position.set(c.x, fy + 0.625, c.z);
+      cab.castShadow = true;
+      this.scene.add(cab);
+      // 서랍 선
+      const drawer = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.02, 0.42), creteMat);
+      drawer.position.set(c.x, fy + 0.45, c.z + 0.015);
+      this.scene.add(drawer);
+    }
+
+    // 탄약 상자 / 보급 박스
+    const crateMat2 = new THREE.MeshLambertMaterial({ color: 0x2e3a1c,
+      emissive: new THREE.Color(0x0a0e08), emissiveIntensity: 0.8 });
+    const crates: Array<{ x: number; z: number; ry?: number }> = [
+      { x: -3, z: BZ - 2.5 },
+      { x:  3, z: BZ - 2.5 },
+      { x:  0, z: BZ - 3.5, ry: 0.25 },
+      { x: -8, z: BZ - 2.0, ry: -0.1 },
+      { x:  8, z: BZ - 2.0 },
+    ];
+    for (const c of crates) {
+      const crate = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.38, 0.35), crateMat2);
+      crate.position.set(c.x, fy + 0.19, c.z);
+      crate.rotation.y = c.ry ?? 0;
+      crate.castShadow = true;
+      this.scene.add(crate);
+    }
+
+    // 모래주머니 추가 엄폐물 (복도 중간)
+    for (let i = 0; i < 5; i++) {
+      const g = new THREE.Group();
+      g.position.set(-5 + i * 2.5, fy + 0.14, BZ + 2.5);
+      g.rotation.y = i * 0.3;
+      const bag = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.85, 4, 8), sbMat);
+      bag.rotation.z = Math.PI / 2;
+      bag.castShadow = true;
+      g.add(bag);
+      this.scene.add(g);
+    }
+
+    // 바닥에 흩어진 문서·종이
+    for (let i = 0; i < 18; i++) {
+      const paper = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.28 + (i % 3) * 0.12, 0.20 + (i % 2) * 0.10),
+        paperMat,
+      );
+      paper.rotation.x = -Math.PI / 2;
+      paper.rotation.z = i * 0.72;
+      paper.position.set(-9 + i * 1.08, fy + 0.015, BZ - 0.5 + (i % 5) * 0.9);
+      this.scene.add(paper);
+    }
+
+    // 계단 (단순 박스 계단, 오른쪽 모서리)
+    this.buildStaircase(fy, BZ);
+  }
+
+  private buildStaircase(topFloorY: number, BZ: number): void {
+    const stepMat = new THREE.MeshLambertMaterial({ color: 0x3a3228,
+      emissive: new THREE.Color(0x100e0c), emissiveIntensity: 0.7 });
+    const railMat = new THREE.MeshLambertMaterial({ color: 0x1e1a14,
+      emissive: new THREE.Color(0x080604), emissiveIntensity: 0.9 });
+
+    const steps = 8;
+    const stepH = topFloorY / steps;
+    const stepD = 0.65;
+    const startZ = BZ + 5.0;
+    const stairX = 11.0;
+
+    for (let i = 0; i < steps; i++) {
+      const step = new THREE.Mesh(
+        new THREE.BoxGeometry(2.8, stepH, stepD),
+        stepMat,
+      );
+      step.position.set(stairX, stepH * (i + 0.5), startZ - i * stepD);
+      step.castShadow = true;
+      this.scene.add(step);
+    }
+
+    // 난간 기둥
+    for (let i = 0; i <= steps; i++) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, topFloorY * 0.55, 6), railMat);
+      post.position.set(stairX - 1.3, stepH * i + topFloorY * 0.275, startZ - i * stepD + 0.2);
+      this.scene.add(post);
+    }
+    // 난간 가로대
+    const railing = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, stepD * steps + 0.5), railMat);
+    railing.rotation.x = Math.atan2(-topFloorY, stepD * steps);
+    railing.position.set(stairX - 1.3, topFloorY * 0.6, startZ - (steps * stepD) / 2 + 0.2);
+    this.scene.add(railing);
+  }
+
   /**
    * Helper: creates a BoxGeometry panel spanning [x0,x1] × [y0,y1] at depth z.
    */
@@ -663,53 +936,56 @@ export class MapBuilder {
   }
 
   private buildFires(): void {
-    // Burning vehicles / debris — emissive orange glow + smoke
-    const firePositions: Array<{ x: number; z: number }> = [
-      { x: -18, z: 17 },  // bus 1
-      { x:  10, z: 19 },  // bus 2
-      { x:  -4, z: 21 },  // truck
-      { x:  24, z: 22 },  // debris
-      { x: -30, z: 28 },  // background
+    // 화재 위치 대폭 확대 — 도청 광장 앞까지 불길이 번진 상태
+    const firePositions: Array<{ x: number; z: number; scale?: number }> = [
+      { x: -18, z: 17, scale: 1.8 },   // bus 1 — 크게 타오름
+      { x:  10, z: 19, scale: 1.5 },   // bus 2
+      { x:  -4, z: 21, scale: 1.2 },   // truck
+      { x:  24, z: 22, scale: 1.0 },   // debris
+      { x: -30, z: 28, scale: 1.3 },   // background left
+      { x:  30, z: 26, scale: 1.1 },   // background right
+      { x:   0, z: 12, scale: 0.9 },   // 광장 입구 바리케이드
+      { x: -10, z:  8, scale: 0.7 },   // 도청 계단 앞 잔해
     ];
 
-    for (const { x, z } of firePositions) {
-      this.addFire(x, z);
+    for (const { x, z, scale = 1 } of firePositions) {
+      this.addFire(x, z, scale);
     }
   }
 
-  private addFire(x: number, z: number): void {
-    // Base glow
-    const fire1 = new THREE.MeshBasicMaterial({ color: 0xff4400 });
-    const fire2 = new THREE.MeshBasicMaterial({ color: 0xff8800 });
+  private addFire(x: number, z: number, scale = 1): void {
+    const fire1 = new THREE.MeshBasicMaterial({ color: 0xff3300 });
+    const fire2 = new THREE.MeshBasicMaterial({ color: 0xff6600 });
+    const fire3 = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
 
-    const f1 = new THREE.Mesh(new THREE.SphereGeometry(0.8, 7, 5), fire1);
-    f1.position.set(x, 2.2, z);
+    const f1 = new THREE.Mesh(new THREE.SphereGeometry(1.5 * scale, 7, 5), fire1);
+    f1.position.set(x, 2.2 * scale, z);
     this.scene.add(f1);
 
-    const f2 = new THREE.Mesh(new THREE.SphereGeometry(0.5, 6, 4), fire2);
-    f2.position.set(x, 3.2, z);
+    const f2 = new THREE.Mesh(new THREE.SphereGeometry(1.0 * scale, 6, 4), fire2);
+    f2.position.set(x, 3.8 * scale, z);
     this.scene.add(f2);
 
-    const f3 = new THREE.Mesh(new THREE.SphereGeometry(0.3, 5, 4), new THREE.MeshBasicMaterial({ color: 0xffdd00 }));
-    f3.position.set(x, 4.0, z);
+    const f3 = new THREE.Mesh(new THREE.SphereGeometry(0.6 * scale, 5, 4), fire3);
+    f3.position.set(x, 5.2 * scale, z);
     this.scene.add(f3);
 
-    // Point light for glow effect
-    const light = new THREE.PointLight(0xff4400, 1.5, 10);
-    light.position.set(x, 2.5, z);
+    // 강렬한 화재 포인트라이트 — 어두운 밤에 주요 광원 역할
+    const light = new THREE.PointLight(0xff3300, 5.0 * scale, 22);
+    light.position.set(x, 3.0, z);
     this.scene.add(light);
 
-    // Smoke column
+    // 더 짙은 연기 기둥
     const smokeMat = new THREE.MeshBasicMaterial({
-      color: 0x444444, transparent: true, opacity: 0.22, depthWrite: false,
+      color: 0x222222, transparent: true, opacity: 0.55, depthWrite: false,
     });
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const sm = new THREE.Mesh(
-        new THREE.SphereGeometry(1.2 + i * 0.9, 7, 5),
+        new THREE.SphereGeometry((1.5 + i * 1.2) * scale, 7, 5),
         smokeMat.clone(),
       );
-      (sm.material as THREE.MeshBasicMaterial).opacity = 0.22 - i * 0.03;
-      sm.position.set(x + (i % 3 - 1) * 0.8, 5 + i * 2.8, z + (i % 2) * 0.6);
+      (sm.material as THREE.MeshBasicMaterial).opacity = Math.max(0.05, 0.55 - i * 0.06);
+      sm.position.set(x + (i % 3 - 1) * 1.2, 6 + i * 3.5, z + (i % 2) * 0.8);
       this.scene.add(sm);
     }
   }
@@ -719,12 +995,13 @@ export class MapBuilder {
     const armyMat = new THREE.MeshLambertMaterial({ color: 0x3a4a28 });
     const darkMat = new THREE.MeshLambertMaterial({ color: 0x222820 });
 
+    // 탱크와 APC가 도청을 향해 진격 중 — 훨씬 가까이
     const formations: Array<{ x: number; z: number }> = [
-      { x: -25, z: 50 },
-      { x:   0, z: 52 },
-      { x:  25, z: 50 },
-      { x: -12, z: 62 },
-      { x:  12, z: 62 },
+      { x: -25, z: 38 },
+      { x:   0, z: 40 },
+      { x:  25, z: 38 },
+      { x: -12, z: 50 },
+      { x:  12, z: 50 },
     ];
 
     for (const { x, z } of formations) {
@@ -767,22 +1044,22 @@ export class MapBuilder {
       this.scene.add(light);
     }
 
-    // Tank further back
+    // 탱크 — 도청 코앞까지 진격
     const tankMat = new THREE.MeshLambertMaterial({ color: 0x2e3a20 });
     const tank = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.6, 7), tankMat);
-    tank.position.set(5, 0.8, 78);
+    tank.position.set(5, 0.8, 45);
     tank.castShadow = true;
     this.scene.add(tank);
 
     // Tank turret — cylinder base + hemisphere dome
     const tTurretBase = new THREE.Mesh(new THREE.CylinderGeometry(1.15, 1.22, 0.55, 16), tankMat);
-    tTurretBase.position.set(5, 1.88, 78);
+    tTurretBase.position.set(5, 1.88, 45);
     this.scene.add(tTurretBase);
     const tTurretDome = new THREE.Mesh(
       new THREE.SphereGeometry(1.1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
       tankMat,
     );
-    tTurretDome.position.set(5, 2.16, 78);
+    tTurretDome.position.set(5, 2.16, 45);
     this.scene.add(tTurretDome);
 
     const tBarrel = new THREE.Mesh(
@@ -790,20 +1067,60 @@ export class MapBuilder {
       darkMat,
     );
     tBarrel.rotation.x = Math.PI / 2;
-    tBarrel.position.set(5, 2.2, 73);
+    tBarrel.position.set(5, 2.2, 40);
     this.scene.add(tBarrel);
+  }
+
+  // 광장과 도청 진입로 조명 — 불빛으로 방향을 알 수 있게
+  private addPlazaLights(): void {
+    const { BZ } = this;
+
+    // 도청 계단 앞 불꽃 — 진입 경로 표시
+    this.addFire(-5, BZ + 9.5, 0.5);
+    this.addFire(5, BZ + 9.5, 0.5);
+
+    // 광장 중앙로 가로등 역할 불꽃들
+    const pathLights: Array<[number, number]> = [
+      [0, -5], [0, 0], [0, 5],
+    ];
+    for (const [x, z] of pathLights) {
+      const l = new THREE.PointLight(0xff5500, 1.4, 15);
+      l.position.set(x, 3, z);
+      this.scene.add(l);
+    }
   }
 
   private addInteriorLights(): void {
     const { BZ } = this;
-    // Warm dim light inside the main hall
-    const hall = new THREE.PointLight(0xfff0d0, 0.6, 22);
-    hall.position.set(0, 4.5, BZ);
+
+    // 비상 랜턴 — 중앙홀 (더 밝게)
+    const hall = new THREE.PointLight(0xff6600, 1.2, 25);
+    hall.position.set(0, 3.0, BZ);
     this.scene.add(hall);
 
-    // Cooler blue light near windows (simulates outside sky)
-    const win = new THREE.PointLight(0xd0e8ff, 0.3, 14);
-    win.position.set(0, 2.5, BZ + 5);
-    this.scene.add(win);
+    // 창문 너머 화염 반사 — 광장 쪽 창가
+    const fireReflect = new THREE.PointLight(0xff4400, 1.8, 20);
+    fireReflect.position.set(0, 2.5, BZ + 5);
+    this.scene.add(fireReflect);
+
+    // 왼쪽 날개 복도 랜턴
+    const lanternL = new THREE.PointLight(0xff8833, 0.9, 14);
+    lanternL.position.set(-10, 2.0, BZ);
+    this.scene.add(lanternL);
+
+    // 오른쪽 날개 복도 랜턴
+    const lanternR = new THREE.PointLight(0xff8833, 0.9, 14);
+    lanternR.position.set(10, 2.0, BZ);
+    this.scene.add(lanternR);
+
+    // 입구 복도 (전면 출입구 안쪽)
+    const entrance = new THREE.PointLight(0xff5500, 1.0, 14);
+    entrance.position.set(0, 2.0, BZ + 5.5);
+    this.scene.add(entrance);
+
+    // 후방 복도
+    const back = new THREE.PointLight(0xff6622, 0.6, 12);
+    back.position.set(0, 2.0, BZ - 4);
+    this.scene.add(back);
   }
 }

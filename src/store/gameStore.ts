@@ -23,6 +23,13 @@ interface GameState {
   // Connection
   wsConnected: boolean;
 
+  // Cover (client-side — 벽에 숨으면 서버 HP 동결)
+  inCover: boolean;
+  coverHp: number;
+
+  // 오프라인 클라이언트 HP
+  clientHp: number;
+
   // Actions
   setUiPhase: (phase: UIPhase) => void;
   applySnapshot: (payload: StateSnapshotPayload) => void;
@@ -30,6 +37,8 @@ interface GameState {
   setShotResult: (payload: ShotResultPayload) => void;
   setPressure: (pressure: number, encirclement: number) => void;
   setWsConnected: (connected: boolean) => void;
+  setCoverState: (inCover: boolean, hp?: number) => void;
+  setClientHp: (hp: number) => void;
   reset: () => void;
   /** 재시작 시 사용: 프롤로그 스킵하고 playing 상태로 바로 초기화 */
   quickRestart: () => void;
@@ -46,6 +55,9 @@ const initial = {
   sessionId: null,
   sessionEnded: null,
   wsConnected: false,
+  inCover: false,
+  coverHp: 100,
+  clientHp: 100,
 };
 
 export const useGameStore = createStore<GameState>((set) => ({
@@ -71,11 +83,16 @@ export const useGameStore = createStore<GameState>((set) => ({
 
   setWsConnected: (wsConnected) => set({ wsConnected }),
 
+  setCoverState: (inCover, hp) => set(inCover ? { inCover: true, coverHp: hp! } : { inCover: false }),
+
+  setClientHp: (hp) => set({ clientHp: Math.max(0, hp) }),
+
   reset: () => set({ ...initial }),
 
   quickRestart: () =>
     set({
       ...initial,
       uiPhase: "playing",
+      clientHp: 100,
     }),
 }));

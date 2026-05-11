@@ -1,19 +1,27 @@
 const SLIDES: { date: string; lines: string[]; emphasis?: boolean }[] = [
   {
     date: "1980년 5월 18일",
-    lines: ["광주 시민들이 군부 독재에 맞서 일어섰다."],
+    lines: ["광주 시민들이 군부 독재에 맞서 일어섰다.", "공수부대가 시민에게 총을 겨눴다."],
   },
   {
     date: "",
-    lines: ["계엄군의 총구 앞에서도 시민들은 물러서지 않았다.", "열흘간의 항쟁."],
+    lines: ["계엄군의 총구 앞에서도 시민들은 물러서지 않았다.", "열흘간의 항쟁 — 수백 명이 쓰러졌다."],
   },
   {
     date: "1980년 5월 26일 밤",
-    lines: ["시민군은 마지막으로 결의를 다졌다.", "200여 명만이 도청에 남았다."],
+    lines: [
+      "\"우리는 광주 시민입니다.\"",
+      "\"우리는 최후까지 싸울 것입니다.\"",
+      "마지막 도청 방송이 울려 퍼졌다.",
+    ],
+  },
+  {
+    date: "",
+    lines: ["도청을 떠나라는 권고를 들으면서도", "200여 명의 시민군은 남기로 했다.", "그들은 알고 있었다 — 이길 수 없다는 것을."],
   },
   {
     date: "1980년 5월 27일 새벽 4시",
-    lines: ["계엄군 탱크가 전남도청을 향해 움직였다."],
+    lines: ["계엄군 탱크가 전남도청을 향해 움직였다.", "헬기가 하늘을 뒤덮었다."],
   },
   {
     date: "",
@@ -22,9 +30,9 @@ const SLIDES: { date: string; lines: string[]; emphasis?: boolean }[] = [
   },
 ];
 
-const FADE_MS   = 900;
-const HOLD_MS   = 2400;
-const LINE_MS   = 500;
+const FADE_MS   = 1100;
+const HOLD_MS   = 3200;
+const LINE_MS   = 700;
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&display=swap');
