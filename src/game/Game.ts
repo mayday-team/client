@@ -104,6 +104,7 @@ export class Game {
     );
     this.bulletManager = new BulletManager(this.sceneManager.scene);
     this.helicopterAI = new HelicopterAI(this.sceneManager.scene);
+    this.helicopterAI.setVisible(false);
     this.viewModel = new ViewModel(this.sceneManager.viewmodelScene);
     this.offlineSoldiers = new OfflineSoldiers();
 
@@ -208,7 +209,7 @@ export class Game {
     const delta = Math.min(this.clock.getDelta(), 0.1);
     const deltaMs = Math.round(delta * 1000);
 
-    const { player, troops, wsConnected, uiPhase } = useGameStore.getState();
+    const { player, troops, wsConnected, uiPhase, displayPhase } = useGameStore.getState();
     if (player && wsConnected && player.ammo !== this.lastServerAmmo) {
       this.lastServerAmmo = player.ammo;
       this.predictedAmmo = player.ammo;
@@ -299,7 +300,11 @@ export class Game {
 
     // ── Client-side systems ───────────────────────────────────────────────
     this.bulletManager.update(delta);
-    this.helicopterAI.update(delta, this.sceneManager.camera.position);
+    const helicopterActive = uiPhase === "playing" && displayPhase >= 2;
+    this.helicopterAI.setVisible(helicopterActive);
+    if (helicopterActive) {
+      this.helicopterAI.update(delta, this.sceneManager.camera.position);
+    }
 
     this.sceneManager.render();
   };

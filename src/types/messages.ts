@@ -27,6 +27,9 @@ export interface StateSnapshotPayload {
   server_tick: number;
   session_id: string;
   scenario_phase: ScenarioPhase;
+  display_phase: number;
+  phase_troops_killed: number;
+  phase_troops_total: number;
   pressure_level: number;
   encirclement_level: number;
   player: PlayerSnapshot;

@@ -1,22 +1,12 @@
 import { useGameStore } from "../store/gameStore";
 import { renderPrologue, removePrologue } from "./PrologueScreen";
 import { playNarration } from "./NarrationScreen";
-import type { ScenarioPhase } from "../types/game";
 
 const CROSSHAIR = `
   <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;pointer-events:none;">
     <div style="position:absolute;top:50%;left:0;width:100%;height:1px;background:rgba(255,255,255,0.8);transform:translateY(-50%);"></div>
     <div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.8);transform:translateX(-50%);"></div>
   </div>`;
-
-const PHASE_LABEL: Record<ScenarioPhase, string> = {
-  INITIAL_CONTACT: "초기 접촉",
-  ESCALATION: "확전",
-  REINFORCEMENT: "증원",
-  ENCIRCLEMENT: "포위",
-  FINAL_STAND: "최후 항전",
-  DEFEAT: "함락",
-};
 
 export class HUD {
   private el: HTMLElement;
@@ -107,7 +97,17 @@ export class HUD {
   };
 
   private renderGameplay(): void {
-    const { player, scenarioPhase, pressureLevel, wsConnected, inCover, coverHp, clientHp } = useGameStore.getState();
+    const {
+      player,
+      displayPhase,
+      phaseTroopsKilled,
+      phaseTroopsTotal,
+      pressureLevel,
+      wsConnected,
+      inCover,
+      coverHp,
+      clientHp,
+    } = useGameStore.getState();
 
     // HP 결정: 서버 연결 → 서버HP(엄폐시 동결), 오프라인 → clientHp
     let hp: number;
@@ -131,8 +131,8 @@ export class HUD {
     const hpPct  = Math.max(0, Math.min(100, (hp / maxHp) * 100));
     const hpColor = hpPct > 50 ? "#4caf50" : hpPct > 25 ? "#ff9800" : "#f44336";
 
-    const phaseLabel = scenarioPhase ? PHASE_LABEL[scenarioPhase] ?? scenarioPhase : "";
-    const phaseCritical = scenarioPhase === "FINAL_STAND" || scenarioPhase === "DEFEAT";
+    const phaseLabel = `페이즈 ${displayPhase}`;
+    const phaseCritical = displayPhase >= 3;
     const pressurePct = Math.round(pressureLevel * 100);
 
     const mins = Math.floor(survivalSec / 60);
@@ -159,19 +159,22 @@ export class HUD {
       ">${inCover ? "엄 폐" : "노 출"}</div>
 
       <!-- 상단 중앙: 전황 단계 -->
-      ${phaseLabel ? `
-        <div style="
+      <div style="
           position:absolute;top:0;left:50%;transform:translateX(-50%);
           background:${phaseCritical ? "rgba(180,20,20,0.92)" : "rgba(10,8,6,0.82)"};
           border-bottom:2px solid ${phaseCritical ? "#f44" : "#6a4a2a"};
-          padding:6px 28px;
-          font-size:13px;letter-spacing:4px;
+          padding:6px 24px;
+          font-size:13px;letter-spacing:3px;
           color:${phaseCritical ? "#ffaaaa" : "#c8b080"};
           text-shadow:0 0 12px ${phaseCritical ? "rgba(255,60,60,0.8)" : "rgba(200,150,60,0.5)"};
           white-space:nowrap;
+          display:flex;gap:16px;align-items:center;
         ">
-          ${phaseLabel}
-        </div>` : ""}
+          <span>${phaseLabel}</span>
+          <span style="font-size:11px;letter-spacing:2px;color:${phaseCritical ? "#ffd0d0" : "#a89068"};">
+            처치 ${phaseTroopsKilled} / ${phaseTroopsTotal}
+          </span>
+        </div>
 
       <!-- 좌하단: 체력 -->
       <div style="

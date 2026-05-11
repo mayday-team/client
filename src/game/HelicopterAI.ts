@@ -53,6 +53,10 @@ export class HelicopterAI {
     );
   }
 
+  setVisible(visible: boolean): void {
+    this.group.visible = visible;
+  }
+
   private buildSpotlight(): void {
     // 서치라이트 — 헬기에서 지상을 훑는 빛
     this.spotlight = new THREE.SpotLight(0xffe8c0, 4.0, 60, 0.28, 0.6);

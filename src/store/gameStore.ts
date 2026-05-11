@@ -13,6 +13,9 @@ interface GameState {
   // World
   troops: TroopSnapshot[];
   scenarioPhase: ScenarioPhase | null;
+  displayPhase: number;
+  phaseTroopsKilled: number;
+  phaseTroopsTotal: number;
   pressureLevel: number;
   encirclementLevel: number;
 
@@ -50,6 +53,9 @@ const initial = {
   lastShotResult: null,
   troops: [] as TroopSnapshot[],
   scenarioPhase: null,
+  displayPhase: 1,
+  phaseTroopsKilled: 0,
+  phaseTroopsTotal: 0,
   pressureLevel: 0,
   encirclementLevel: 0,
   sessionId: null,
@@ -70,6 +76,9 @@ export const useGameStore = createStore<GameState>((set) => ({
       player: payload.player,
       troops: payload.troops,
       scenarioPhase: payload.scenario_phase,
+      displayPhase: payload.display_phase,
+      phaseTroopsKilled: payload.phase_troops_killed,
+      phaseTroopsTotal: payload.phase_troops_total,
       pressureLevel: payload.pressure_level,
       encirclementLevel: payload.encirclement_level,
       sessionId: payload.session_id,
