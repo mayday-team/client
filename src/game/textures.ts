@@ -25,6 +25,114 @@ const CONFIGS: Record<Kind, Cfg> = {
 
 const cache = new Map<string, THREE.CanvasTexture>();
 
+// 불꽃 텍스처 — 알파 그라데이션으로 불꽃 모양, 위로 갈수록 가늘어지고 색은 노란→빨강
+// HDR 색상으로 출력해 블룸이 발광 풍부하게 살림
+export function makeFireTexture(size = 256, hueShift = 0): THREE.CanvasTexture {
+  const key = `fire_${size}_${hueShift.toFixed(2)}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const ctx = c.getContext("2d")!;
+  const img = ctx.createImageData(size, size);
+
+  const cx = size / 2;
+  // 불꽃은 아래가 넓고 위가 좁은 물방울 역방향
+  for (let y = 0; y < size; y++) {
+    // y=0 위쪽(가장 뜨거운 첨단), y=size-1 아래쪽(가장 넓은 베이스)
+    const t = y / (size - 1);          // 0~1 (위→아래)
+    const profileWidth = (0.18 + t * 0.60) * size; // 위 좁고 아래 넓음
+    for (let x = 0; x < size; x++) {
+      const dx = x - cx;
+      const d = Math.abs(dx) / (profileWidth / 2);
+      // 0 = 중심, 1 = 가장자리
+      const insideRatio = 1 - d;
+      let alpha = 0;
+      if (insideRatio > 0) {
+        // 가장자리 부드러운 페이드 + 위쪽으로 갈수록 흐려짐
+        const yFade = 1 - Math.pow(Math.abs(t - 0.55) * 2, 2.2);
+        // 위쪽 추가 페이드 (불 끝)
+        const topFade = Math.min(1, t * 5.0);
+        alpha = Math.max(0, insideRatio * yFade * topFade);
+        // 노이즈로 가장자리 불규칙
+        alpha *= 0.8 + Math.random() * 0.4;
+        alpha = Math.min(1, alpha);
+      }
+
+      // 색상: 중심은 노란, 가장자리는 빨강 — HDR
+      // 중심 부분(작은 insideRatio가 1에 가까울 때) → 밝은 노랑
+      const heat = Math.pow(insideRatio, 1.4);
+      const r = 255;
+      const g = Math.round(60 + 180 * heat);
+      const b = Math.round(20 + 60 * heat * heat);
+
+      const i = (y * size + x) * 4;
+      img.data[i]     = r;
+      img.data[i + 1] = g;
+      img.data[i + 2] = b;
+      img.data[i + 3] = Math.round(alpha * 255);
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  cache.set(key, tex);
+  return tex;
+}
+
+// 나뭇잎 텍스처 — 잎사귀 모양 점들이 모인 불투명 텍스처
+export function makeFoliageTexture(size = 256): THREE.CanvasTexture {
+  const key = `foliage_${size}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+
+  const c = document.createElement("canvas");
+  c.width = c.height = size;
+  const ctx = c.getContext("2d")!;
+
+  // 베이스: 짙은 녹색
+  ctx.fillStyle = "rgb(30, 50, 24)";
+  ctx.fillRect(0, 0, size, size);
+
+  // 잎사귀 모양 (작은 타원 수백 개)
+  const leafColors = [
+    "rgba(45, 80, 28, 0.7)",
+    "rgba(60, 100, 36, 0.6)",
+    "rgba(35, 65, 22, 0.8)",
+    "rgba(75, 110, 40, 0.5)",
+  ];
+  for (let i = 0; i < 600; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const r = 3 + Math.random() * 8;
+    const angle = Math.random() * Math.PI * 2;
+    ctx.fillStyle = leafColors[i % leafColors.length];
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r, r * 0.45, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  // 어두운 그림자 점
+  for (let i = 0; i < 150; i++) {
+    ctx.fillStyle = `rgba(15, 25, 10, ${0.3 + Math.random() * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(Math.random() * size, Math.random() * size, 2 + Math.random() * 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  cache.set(key, tex);
+  return tex;
+}
+
 export function makeNoiseTexture(size: number, kind: Kind): THREE.CanvasTexture {
   const key = `${kind}_${size}`;
   const cached = cache.get(key);

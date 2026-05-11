@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { makeNoiseTexture, makeNoiseNormalMap } from "./textures";
+import { makeNoiseTexture, makeNoiseNormalMap, makeFireTexture, makeFoliageTexture } from "./textures";
 
 // 절차적 텍스처 — 정의 시점에 한 번만 생성, 캐시됨
 const TEX_CONCRETE = makeNoiseTexture(512, "concrete");
@@ -372,21 +372,76 @@ export class MapBuilder {
       [-35, 30], [-20, 30], [-5, 30], [10, 30], [25, 30], [38, 30],
     ];
 
-    const leafColors = [0x2d5a1b, 0x3a6a25, 0x265018];
+    // 잎 텍스처 한 번만 생성 — 공유
+    const foliageTex = makeFoliageTexture(256);
+
+    // 잎 머티리얼 3종 (수종 다양화) — 텍스처 공유, 색만 차이
+    const leafMats = [
+      new THREE.MeshStandardMaterial({ color: 0x4a7028, map: foliageTex, roughness: 1.0, metalness: 0, emissive: new THREE.Color(0x0a1408), emissiveIntensity: 0.25 }),
+      new THREE.MeshStandardMaterial({ color: 0x5a8030, map: foliageTex, roughness: 1.0, metalness: 0, emissive: new THREE.Color(0x0a1408), emissiveIntensity: 0.25 }),
+      new THREE.MeshStandardMaterial({ color: 0x3a5820, map: foliageTex, roughness: 1.0, metalness: 0, emissive: new THREE.Color(0x080e06), emissiveIntensity: 0.20 }),
+    ];
+
     positions.forEach(([x, z], i) => {
-      const trunkH = 3 + (i % 3) * 0.6;
-      const leafR = 1.8 + (i % 2) * 0.7;
-      this.cyl(0.18, 0.25, trunkH, 6, this.matTrunk, x, trunkH / 2, z);
-      const lMat = new THREE.MeshStandardMaterial({ color: leafColors[i % 3] });
-      const add = (r: number, dx: number, dy: number, dz: number) => {
-        const s = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), lMat);
-        s.position.set(x + dx, trunkH + dy, z + dz);
+      const trunkH = 3.4 + (i % 3) * 0.7;
+      const lMat = leafMats[i % 3];
+      const g = new THREE.Group();
+
+      // 메인 줄기 — 위로 갈수록 가늘어짐
+      const trunk = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.12, 0.28, trunkH, 8),
+        this.matTrunk,
+      );
+      trunk.position.y = trunkH / 2;
+      trunk.castShadow = true;
+      g.add(trunk);
+
+      // 가지 2개 (방향 분산)
+      const branchAngle1 = (i % 4) * 0.4 + 0.3;
+      const branchAngle2 = branchAngle1 + Math.PI + 0.5;
+      for (const [ang, ay] of [[branchAngle1, trunkH * 0.65], [branchAngle2, trunkH * 0.50]] as const) {
+        const br = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.06, 0.12, 1.4, 6),
+          this.matTrunk,
+        );
+        br.position.set(Math.cos(ang) * 0.45, ay + 0.4, Math.sin(ang) * 0.45);
+        br.rotation.z = Math.cos(ang) * -0.9;
+        br.rotation.x = Math.sin(ang) * 0.9;
+        br.castShadow = true;
+        g.add(br);
+      }
+
+      // 수관 — 8개 잎 클러스터를 원뿔형으로 불규칙 배치
+      const crownBase = trunkH + 0.2;
+      const clusters: Array<[number, number, number, number]> = [
+        // [r, dx, dy, dz]
+        [1.5, 0,    0.0,  0],     // 중심 메인
+        [1.2, 0.9,  0.2,  0.5],
+        [1.2, -0.7, 0.1, -0.6],
+        [1.1, 0.5,  0.4, -0.9],
+        [1.1, -0.9, 0.3,  0.7],
+        [0.9, 0.3,  1.0,  0.2],   // 상단
+        [0.9, -0.4, 1.1, -0.3],
+        [0.8, 0.0,  1.6,  0.1],   // 꼭대기
+      ];
+      for (let ci = 0; ci < clusters.length; ci++) {
+        const [r, dx, dy, dz] = clusters[ci];
+        // 위치·크기에 작은 의사난수 변동 — 나무마다 달라 보이게
+        const seed = (i * 7 + ci * 13) % 100 / 100;
+        const rr = r * (0.85 + seed * 0.3);
+        const s = new THREE.Mesh(new THREE.SphereGeometry(rr, 8, 6), lMat);
+        s.position.set(
+          dx + (seed - 0.5) * 0.3,
+          crownBase + dy,
+          dz + ((seed * 3) % 1 - 0.5) * 0.3,
+        );
         s.castShadow = true;
-        this.scene.add(s);
-      };
-      add(leafR,       0,           leafR * 0.7,  0);
-      add(leafR * 0.7, leafR * 0.6, leafR * 0.4,  leafR * 0.3);
-      add(leafR * 0.6, -leafR * 0.5, leafR * 0.5, -leafR * 0.4);
+        g.add(s);
+      }
+
+      g.position.set(x, 0, z);
+      g.rotation.y = (i % 7) * 0.4; // 방향 다양화
+      this.scene.add(g);
     });
   }
 
@@ -881,10 +936,14 @@ export class MapBuilder {
       emissive: new THREE.Color(0xffa050), emissiveIntensity: 1.8, fog: false,
     });
 
+    // 빌딩용 텍스처는 루프 밖에서 한 번만 클론해 공유 — VRAM 절감
+    const cityTexMap = tiled(TEX_CONCRETE, 5);
+    const cityTexNormal = tiled(TEX_CONCRETE_N, 5);
+
     for (const s of specs) {
       const bMat = new THREE.MeshStandardMaterial({
         color: s.color, roughness: 0.85, metalness: 0.05,
-        map: tiled(TEX_CONCRETE, 5), normalMap: tiled(TEX_CONCRETE_N, 5),
+        map: cityTexMap, normalMap: cityTexNormal,
         emissive: new THREE.Color(0x302016), emissiveIntensity: 0.8, fog: false,
       });
       const body = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, s.d), bMat);
@@ -1143,41 +1202,107 @@ export class MapBuilder {
     }
   }
 
+  // 모든 화염이 공유 — 텍스처는 한 번만 생성
+  private static fireTexA: THREE.Texture | null = null;
+  private static fireTexB: THREE.Texture | null = null;
+  private animatedFires: { sprites: THREE.Sprite[]; baseScale: number; light: THREE.PointLight; baseIntensity: number; phase: number }[] = [];
+
   private addFire(x: number, z: number, scale = 1): void {
-    // HDR(>1) 색상으로 블룸을 강하게 트리거 — 톤매핑 후 풍부한 발광
-    const fire1 = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 0.55, 0.08), fog: false });
-    const fire2 = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 1.1, 0.18), fog: false });
-    const fire3 = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.6, 0.35), fog: false });
+    if (!MapBuilder.fireTexA) MapBuilder.fireTexA = makeFireTexture(256);
+    if (!MapBuilder.fireTexB) MapBuilder.fireTexB = makeFireTexture(256, 1);
 
-    const f1 = new THREE.Mesh(new THREE.SphereGeometry(1.5 * scale, 7, 5), fire1);
-    f1.position.set(x, 2.2 * scale, z);
-    this.scene.add(f1);
+    const sprites: THREE.Sprite[] = [];
 
-    const f2 = new THREE.Mesh(new THREE.SphereGeometry(1.0 * scale, 6, 4), fire2);
-    f2.position.set(x, 3.8 * scale, z);
-    this.scene.add(f2);
+    // 베이스 불꽃 — 가장 크고 밝음. HDR 색상으로 블룸 트리거
+    const mat1 = new THREE.SpriteMaterial({
+      map: MapBuilder.fireTexA,
+      color: new THREE.Color(2.8, 1.3, 0.35),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    });
+    const s1 = new THREE.Sprite(mat1);
+    s1.position.set(x, 1.8 * scale, z);
+    s1.scale.set(2.2 * scale, 3.4 * scale, 1);
+    this.scene.add(s1);
+    sprites.push(s1);
 
-    const f3 = new THREE.Mesh(new THREE.SphereGeometry(0.6 * scale, 5, 4), fire3);
-    f3.position.set(x, 5.2 * scale, z);
-    this.scene.add(f3);
+    // 위쪽 작은 불꽃 (꼬리)
+    const mat2 = new THREE.SpriteMaterial({
+      map: MapBuilder.fireTexB,
+      color: new THREE.Color(2.2, 0.8, 0.18),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    });
+    const s2 = new THREE.Sprite(mat2);
+    s2.position.set(x + 0.1 * scale, 3.4 * scale, z);
+    s2.scale.set(1.4 * scale, 2.2 * scale, 1);
+    this.scene.add(s2);
+    sprites.push(s2);
 
-    // 강렬한 화재 포인트라이트 — 어두운 밤에 주요 광원 역할
-    const light = new THREE.PointLight(0xff3300, 5.0 * scale, 22);
-    light.position.set(x, 3.0, z);
+    // 더 위 작은 불티
+    const mat3 = new THREE.SpriteMaterial({
+      map: MapBuilder.fireTexA,
+      color: new THREE.Color(3.5, 1.8, 0.4),
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      fog: false,
+    });
+    const s3 = new THREE.Sprite(mat3);
+    s3.position.set(x - 0.15 * scale, 4.6 * scale, z + 0.1 * scale);
+    s3.scale.set(0.9 * scale, 1.4 * scale, 1);
+    this.scene.add(s3);
+    sprites.push(s3);
+
+    // 강렬한 화재 포인트라이트
+    const baseIntensity = 5.0 * scale;
+    const light = new THREE.PointLight(0xff5520, baseIntensity, 22);
+    light.position.set(x, 2.5, z);
     this.scene.add(light);
 
-    // 더 짙은 연기 기둥
-    const smokeMat = new THREE.MeshBasicMaterial({
-      color: 0x3a332c, transparent: true, opacity: 0.42, depthWrite: false,
+    // 플리커 애니메이션용 등록
+    this.animatedFires.push({
+      sprites,
+      baseScale: scale,
+      light,
+      baseIntensity,
+      phase: Math.random() * Math.PI * 2,
     });
-    for (let i = 0; i < 8; i++) {
-      const sm = new THREE.Mesh(
-        new THREE.SphereGeometry((1.5 + i * 1.2) * scale, 7, 5),
-        smokeMat.clone(),
-      );
-      (sm.material as THREE.MeshBasicMaterial).opacity = Math.max(0.05, 0.55 - i * 0.06);
-      sm.position.set(x + (i % 3 - 1) * 1.2, 6 + i * 3.5, z + (i % 2) * 0.8);
+
+    // 연기 — 사각 빌보드 스프라이트로 단순화·강화
+    for (let i = 0; i < 5; i++) {
+      const smokeMat = new THREE.SpriteMaterial({
+        color: 0x2a2620,
+        transparent: true,
+        opacity: Math.max(0.08, 0.55 - i * 0.10),
+        depthWrite: false,
+        fog: false,
+      });
+      const sm = new THREE.Sprite(smokeMat);
+      sm.position.set(x + (i % 3 - 1) * 0.8, 6 + i * 2.6, z + (i % 2) * 0.6);
+      const w = (3.0 + i * 1.0) * scale;
+      sm.scale.set(w, w, 1);
       this.scene.add(sm);
+    }
+  }
+
+  // Game.loop에서 매 프레임 호출되도록 — 불꽃 깜박임
+  flickerFires(time: number): void {
+    for (const f of this.animatedFires) {
+      const t = time * 6 + f.phase;
+      const flick = 0.85 + Math.sin(t) * 0.10 + Math.sin(t * 2.3) * 0.05;
+      f.light.intensity = f.baseIntensity * flick;
+      // 스프라이트 살짝 늘이기
+      for (let i = 0; i < f.sprites.length; i++) {
+        const s = f.sprites[i];
+        const baseY = [3.4, 2.2, 1.4][i] * f.baseScale;
+        const baseX = [2.2, 1.4, 0.9][i] * f.baseScale;
+        s.scale.set(baseX * (0.95 + Math.sin(t + i) * 0.08), baseY * flick, 1);
+      }
     }
   }
 

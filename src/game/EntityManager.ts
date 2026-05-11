@@ -102,60 +102,101 @@ export class EntityManager {
       return m;
     };
 
+    // 정면 식별용 머티리얼 — 어두운 띠/눈/벨트 버클
+    const darkAccent = new THREE.MeshStandardMaterial({
+      color: 0x0a0a08, roughness: 0.6, metalness: 0.2,
+      emissive: new THREE.Color(0x040402), emissiveIntensity: 1.5,
+    });
+    // 가슴 휘장 — 약간 밝아서 멀리서도 보임
+    const insigniaMat = new THREE.MeshStandardMaterial({
+      color: 0x8a7440, roughness: 0.7, metalness: 0.3,
+      emissive: new THREE.Color(0x2a2010), emissiveIntensity: 1.6,
+    });
+
     // ── 상체 (몸통) ─────────────────────────────────────────────────────────
-    const body = mesh(new THREE.BoxGeometry(0.44, 0.62, 0.26), uniformMat, 0, 1.21, 0);
+    // +z가 정면 — 몸통은 앞뒤 두께를 좀 더 차이나게
+    const body = mesh(new THREE.BoxGeometry(0.44, 0.62, 0.28), uniformMat, 0, 1.21, 0);
     body.name = "body";
 
-    // 목 (짧게)
+    // 가슴 휘장 (정면 식별) — 군복 위 왼쪽 가슴
+    mesh(new THREE.BoxGeometry(0.10, 0.04, 0.02), insigniaMat, -0.10, 1.36, 0.14);
+    // 가슴 단추 줄 (정면 중앙)
+    for (const y of [1.40, 1.28, 1.16, 1.04]) {
+      mesh(new THREE.BoxGeometry(0.03, 0.03, 0.025), darkAccent, 0, y, 0.14);
+    }
+
+    // 목
     mesh(new THREE.BoxGeometry(0.14, 0.10, 0.14), skinMat, 0, 1.57, 0);
 
     // ── 머리 ──────────────────────────────────────────────────────────────
     mesh(new THREE.BoxGeometry(0.24, 0.24, 0.24), skinMat, 0, 1.73, 0);
 
-    // 헬멧 (M1 스타일 — 납작한 반원 형태)
-    const helmetGeo = new THREE.SphereGeometry(0.18, 8, 5, 0, Math.PI * 2, 0, Math.PI * 0.52);
+    // 얼굴 정면 디테일 — 눈 두 개 (어두운 점)
+    mesh(new THREE.BoxGeometry(0.04, 0.025, 0.02), darkAccent, -0.06, 1.76, 0.12);
+    mesh(new THREE.BoxGeometry(0.04, 0.025, 0.02), darkAccent,  0.06, 1.76, 0.12);
+    // 입 (어두운 가로 띠)
+    mesh(new THREE.BoxGeometry(0.07, 0.012, 0.015), darkAccent, 0, 1.68, 0.122);
+
+    // 헬멧 (M1 스타일)
+    const helmetGeo = new THREE.SphereGeometry(0.18, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.52);
     mesh(helmetGeo, helmetMat, 0, 1.82, 0);
-    // 헬멧 챙 (앞뒤로 약간 넓게)
-    mesh(new THREE.BoxGeometry(0.38, 0.03, 0.42), helmetMat, 0, 1.68, 0.02);
+    // 헬멧 챙 — 앞쪽으로 더 돌출시켜 방향 명확히
+    const brim = new THREE.Mesh(new THREE.BoxGeometry(0.40, 0.025, 0.10), helmetMat);
+    brim.position.set(0, 1.685, 0.13);
+    brim.castShadow = true;
+    g.add(brim);
+    // 헬멧 띠 (정면 가로띠 — 어둠 강조)
+    mesh(new THREE.BoxGeometry(0.36, 0.025, 0.025), darkAccent, 0, 1.71, 0.14);
 
-    // ── 허리 (벨트 + 탄통) ────────────────────────────────────────────────
+    // ── 허리 (벨트 + 버클) ────────────────────────────────────────────────
     mesh(new THREE.BoxGeometry(0.46, 0.06, 0.28), beltMat, 0, 0.90, 0);
-    // 탄창 파우치 (왼쪽 허리)
-    mesh(new THREE.BoxGeometry(0.08, 0.10, 0.07), beltMat, -0.18, 0.87, 0.12);
-    mesh(new THREE.BoxGeometry(0.08, 0.10, 0.07), beltMat, -0.10, 0.87, 0.12);
+    // 버클 (정면 중앙) — 금속 광택
+    const buckle = new THREE.Mesh(
+      new THREE.BoxGeometry(0.07, 0.06, 0.02),
+      new THREE.MeshStandardMaterial({
+        color: 0x9a8a40, roughness: 0.3, metalness: 0.85,
+        emissive: new THREE.Color(0x2a2010), emissiveIntensity: 1.4,
+      }),
+    );
+    buckle.position.set(0, 0.90, 0.145);
+    buckle.castShadow = true;
+    g.add(buckle);
+    // 탄창 파우치 (왼쪽 허리, 정면 쪽)
+    mesh(new THREE.BoxGeometry(0.08, 0.10, 0.07), beltMat, -0.18, 0.87, 0.13);
+    mesh(new THREE.BoxGeometry(0.08, 0.10, 0.07), beltMat, -0.10, 0.87, 0.13);
 
-    // ── 하체 (바지 — 상하 두 파트) ────────────────────────────────────────
+    // ── 하체 ──────────────────────────────────────────────────────────────
     for (const x of [-0.13, 0.13]) {
-      // 허벅지
       mesh(new THREE.BoxGeometry(0.17, 0.40, 0.20), uniformMat, x, 0.65, 0);
-      // 종아리
       mesh(new THREE.BoxGeometry(0.15, 0.38, 0.18), uniformMat, x, 0.26, 0);
-      // 군화 (발목 부분)
-      mesh(new THREE.BoxGeometry(0.16, 0.16, 0.28), bootMat, x, 0.08, 0.03);
+      // 군화 — 앞쪽으로 더 길게 (발끝이 정면 방향)
+      mesh(new THREE.BoxGeometry(0.16, 0.16, 0.32), bootMat, x, 0.08, 0.05);
     }
 
     // ── 팔 ────────────────────────────────────────────────────────────────
-    // 왼팔 — 몸통 옆에 붙어있게
+    // 왼팔
     mesh(new THREE.BoxGeometry(0.13, 0.36, 0.15), uniformMat, -0.29, 1.22, 0);
     mesh(new THREE.BoxGeometry(0.11, 0.28, 0.13), uniformMat, -0.30, 0.90, 0.06);
-    // 오른팔 — 소총 방향으로 앞으로 내밀기
-    mesh(new THREE.BoxGeometry(0.13, 0.36, 0.15), uniformMat, 0.28, 1.20, 0.04);
-    mesh(new THREE.BoxGeometry(0.11, 0.28, 0.13), uniformMat, 0.27, 0.90, 0.12);
+    // 오른팔 — 소총 잡는 자세 (앞으로)
+    mesh(new THREE.BoxGeometry(0.13, 0.36, 0.15), uniformMat, 0.28, 1.20, 0.06);
+    mesh(new THREE.BoxGeometry(0.11, 0.28, 0.13), uniformMat, 0.27, 0.90, 0.16);
 
-    // ── M16 소총 ──────────────────────────────────────────────────────────
-    // 개머리판 (목재)
-    mesh(new THREE.BoxGeometry(0.04, 0.07, 0.22), woodMat, 0.32, 1.05, -0.18);
-    // 리시버
-    mesh(new THREE.BoxGeometry(0.04, 0.07, 0.30), rifleMat, 0.32, 1.08, 0.08);
-    // 탄창
-    mesh(new THREE.BoxGeometry(0.03, 0.14, 0.06), rifleMat, 0.32, 0.98, 0.10);
-    // 총열
-    const barrelGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.52, 6);
+    // 어깨 견장 (정면 좌우 어깨 위)
+    mesh(new THREE.BoxGeometry(0.12, 0.025, 0.13), insigniaMat, -0.27, 1.43, 0.02);
+    mesh(new THREE.BoxGeometry(0.12, 0.025, 0.13), insigniaMat,  0.27, 1.43, 0.02);
+
+    // ── M16 소총 — 정면 쪽으로 더 돌출 ────────────────────────────────────
+    mesh(new THREE.BoxGeometry(0.04, 0.07, 0.22), woodMat, 0.32, 1.05, -0.10);
+    mesh(new THREE.BoxGeometry(0.04, 0.07, 0.30), rifleMat, 0.32, 1.08, 0.16);
+    mesh(new THREE.BoxGeometry(0.03, 0.14, 0.06), rifleMat, 0.32, 0.98, 0.18);
+    const barrelGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.55, 8);
     const barrel = new THREE.Mesh(barrelGeo, rifleMat);
     barrel.rotation.x = Math.PI / 2;
-    barrel.position.set(0.32, 1.09, 0.44);
+    barrel.position.set(0.32, 1.09, 0.54);
     barrel.castShadow = true;
     g.add(barrel);
+    // 가늠쇠 (총구 위 — 정면 방향 강조)
+    mesh(new THREE.BoxGeometry(0.015, 0.025, 0.015), rifleMat, 0.32, 1.11, 0.78);
 
     void troop;
     return g;

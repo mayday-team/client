@@ -17,6 +17,8 @@ export class SceneManager {
   private composer!: EffectComposer;
   private renderWidth = 0;
   private renderHeight = 0;
+  private mapBuilder!: MapBuilder;
+  private clock = new THREE.Clock();
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
@@ -57,9 +59,10 @@ export class SceneManager {
 
     this.buildLights();
     this.buildGround();
-    new MapBuilder(this.scene);
+    this.mapBuilder = new MapBuilder(this.scene);
 
     this.setupPostProcessing();
+    this.clock.start();
 
     window.addEventListener("resize", this.onResize);
   }
@@ -152,6 +155,9 @@ export class SceneManager {
   };
 
   render(): void {
+    // 불꽃 깜박임 애니메이션
+    this.mapBuilder.flickerFires(this.clock.getElapsedTime());
+
     this.renderer.clear();
     this.composer.render();
     this.renderer.clearDepth();
