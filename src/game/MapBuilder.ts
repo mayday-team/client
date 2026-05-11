@@ -7,8 +7,8 @@ export class MapBuilder {
   private readonly matBuilding = new THREE.MeshLambertMaterial({ color: 0x5a5248 });
   private readonly matStone = new THREE.MeshLambertMaterial({ color: 0x3e3a36 });
   private readonly matRoof = new THREE.MeshLambertMaterial({ color: 0x2a3028 });
-  private readonly matPlaza = new THREE.MeshLambertMaterial({ color: 0x2a2820 });
-  private readonly matRoad = new THREE.MeshLambertMaterial({ color: 0x1a1a18 });
+  private readonly matPlaza = new THREE.MeshLambertMaterial({ color: 0x5a4d3b, emissive: 0x181008, emissiveIntensity: 0.7 });
+  private readonly matRoad = new THREE.MeshLambertMaterial({ color: 0x48423a, emissive: 0x0e0a07, emissiveIntensity: 0.55 });
   private readonly matWindow = new THREE.MeshLambertMaterial({ color: 0x0a1018 });
   private readonly matDoor = new THREE.MeshLambertMaterial({ color: 0x080810 });
   private readonly matTrunk = new THREE.MeshLambertMaterial({ color: 0x2e1e0c });
@@ -16,11 +16,11 @@ export class MapBuilder {
   private readonly matPole = new THREE.MeshLambertMaterial({ color: 0x555555 });
   private readonly matFlag = new THREE.MeshLambertMaterial({ color: 0x6a1010, side: THREE.DoubleSide });
   private readonly matWater = new THREE.MeshLambertMaterial({ color: 0x1a2428, transparent: true, opacity: 0.75 });
-  private readonly matSidewalk = new THREE.MeshLambertMaterial({ color: 0x302e2a });
-  private readonly matPath = new THREE.MeshLambertMaterial({ color: 0x2c2a24 });
-  private readonly matGrass = new THREE.MeshLambertMaterial({ color: 0x1a1e10 });
+  private readonly matSidewalk = new THREE.MeshLambertMaterial({ color: 0x5a5248, emissive: 0x100b07, emissiveIntensity: 0.5 });
+  private readonly matPath = new THREE.MeshLambertMaterial({ color: 0x6a5438, emissive: 0x1a1007, emissiveIntensity: 0.75 });
+  private readonly matGrass = new THREE.MeshLambertMaterial({ color: 0x28301d, emissive: 0x040602, emissiveIntensity: 0.35 });
   private readonly matMark = new THREE.MeshLambertMaterial({ color: 0x888880 });
-  private readonly matCurb = new THREE.MeshLambertMaterial({ color: 0x383633 });
+  private readonly matCurb = new THREE.MeshLambertMaterial({ color: 0x555047, emissive: 0x080604, emissiveIntensity: 0.35 });
 
   constructor(private scene: THREE.Scene) {
     this.buildGrassPatches();
@@ -199,6 +199,41 @@ export class MapBuilder {
 
     // Central path from fountain to steps
     this.plane(6, 30, this.matPath, 0, 0.02, -8);
+    this.buildApproachFloorCues();
+  }
+
+  private buildApproachFloorCues(): void {
+    const washMat = new THREE.MeshBasicMaterial({
+      color: 0xff9a45,
+      transparent: true,
+      opacity: 0.08,
+      depthWrite: false,
+      fog: false,
+    });
+    const wash = new THREE.Mesh(new THREE.PlaneGeometry(30, 62), washMat);
+    wash.rotation.x = -Math.PI / 2;
+    wash.position.set(0, 0.045, -2);
+    this.scene.add(wash);
+
+    const lineMat = new THREE.MeshBasicMaterial({
+      color: 0xffc070,
+      transparent: true,
+      opacity: 0.22,
+      depthWrite: false,
+      fog: false,
+    });
+    for (let z = -28; z <= 28; z += 7) {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(42, 0.055), lineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(0, 0.055, z);
+      this.scene.add(line);
+    }
+    for (const x of [-16, 16]) {
+      const edge = new THREE.Mesh(new THREE.PlaneGeometry(0.08, 58), lineMat);
+      edge.rotation.x = -Math.PI / 2;
+      edge.position.set(x, 0.056, -1);
+      this.scene.add(edge);
+    }
   }
 
   private buildFountain(): void {
@@ -433,8 +468,8 @@ export class MapBuilder {
 
     const wallMat  = new THREE.MeshLambertMaterial({ color: 0x6a5e50, side: THREE.DoubleSide,
       emissive: new THREE.Color(0x2a1e14), emissiveIntensity: 0.8 });
-    const floorMat = new THREE.MeshLambertMaterial({ color: 0x5a4832,
-      emissive: new THREE.Color(0x221808), emissiveIntensity: 0.9 });
+    const floorMat = new THREE.MeshLambertMaterial({ color: 0x7a6346,
+      emissive: new THREE.Color(0x2c1f10), emissiveIntensity: 1.15 });
     const ceilMat  = new THREE.MeshLambertMaterial({ color: 0x5a5248, side: THREE.DoubleSide,
       emissive: new THREE.Color(0x1e1a16), emissiveIntensity: 0.8 });
 
@@ -444,6 +479,19 @@ export class MapBuilder {
     floor2.position.set(0, FLOOR_Y + 0.02, BZ);
     floor2.receiveShadow = true;
     this.scene.add(floor2);
+
+    const floorLineMat = new THREE.MeshBasicMaterial({
+      color: 0xb08a58,
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false,
+    });
+    for (let i = -3; i <= 3; i++) {
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W, 0.035), floorLineMat);
+      line.rotation.x = -Math.PI / 2;
+      line.position.set(0, FLOOR_Y + 0.026, BZ + i * 1.75);
+      this.scene.add(line);
+    }
 
     // ── 천장 ──────────────────────────────────────────────────────────────
     const ceil2 = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W, DEPTH), ceilMat);
@@ -726,10 +774,10 @@ export class MapBuilder {
       { x:  55, z: -68, w: 22, h: 12, d: 14, color: 0x909080 },
     ];
 
-    const winMat = new THREE.MeshLambertMaterial({ color: 0x2a3a50 });
+    const winMat = new THREE.MeshLambertMaterial({ color: 0x60799a, emissive: 0x111f30, emissiveIntensity: 1.0, fog: false });
 
     for (const s of specs) {
-      const bMat = new THREE.MeshLambertMaterial({ color: s.color });
+      const bMat = new THREE.MeshLambertMaterial({ color: s.color, emissive: 0x302016, emissiveIntensity: 0.95, fog: false });
       const body = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, s.d), bMat);
       body.position.set(s.x, s.h / 2, s.z);
       body.castShadow = true;
@@ -751,7 +799,7 @@ export class MapBuilder {
       // Rooftop parapet
       const parapet = new THREE.Mesh(
         new THREE.BoxGeometry(s.w + 0.3, 0.6, s.d + 0.3),
-        new THREE.MeshLambertMaterial({ color: (s.color & 0xfefefe) - 0x101010 }),
+        new THREE.MeshLambertMaterial({ color: (s.color & 0xfefefe) - 0x101010, emissive: 0x241810, emissiveIntensity: 0.8, fog: false }),
       );
       parapet.position.set(s.x, s.h + 0.3, s.z);
       this.scene.add(parapet);
@@ -762,7 +810,7 @@ export class MapBuilder {
     specs.slice(0, 8).forEach((s, i) => {
       const aw = new THREE.Mesh(
         new THREE.BoxGeometry(s.w, 0.4, 1.2),
-        new THREE.MeshLambertMaterial({ color: awningColors[i % 4] }),
+        new THREE.MeshLambertMaterial({ color: awningColors[i % 4], emissive: 0x100807, emissiveIntensity: 0.85, fog: false }),
       );
       aw.position.set(s.x, 3.2, s.z + s.d / 2 + 0.5);
       this.scene.add(aw);
@@ -777,14 +825,36 @@ export class MapBuilder {
     this.buildProtestBanners();
     this.buildFires();
     this.buildMilitaryVehicles();
+    this.addExteriorStructureFill();
+  }
+
+  private addExteriorStructureFill(): void {
+    const fills: Array<[number, number, number]> = [
+      [0, 18, 2.8],
+      [-24, 24, 2.0],
+      [24, 24, 2.0],
+      [0, 42, 2.4],
+      [-46, 44, 1.8],
+      [46, 44, 1.8],
+    ];
+
+    for (const [x, z, intensity] of fills) {
+      const light = new THREE.PointLight(0xff8a3a, intensity, 34);
+      light.position.set(x, 7, z);
+      this.scene.add(light);
+    }
+
+    const moonBounce = new THREE.DirectionalLight(0xb8c6ff, 0.55);
+    moonBounce.position.set(0, 25, 25);
+    this.scene.add(moonBounce);
   }
 
   private buildVehicleBarricades(): void {
     // Overturned/burned civilian buses and trucks blocking 금남로
 
-    const busColor  = new THREE.MeshLambertMaterial({ color: 0x5a4a30 }); // charred
-    const truckMat  = new THREE.MeshLambertMaterial({ color: 0x4a5038 }); // civilian truck
-    const glassMat  = new THREE.MeshLambertMaterial({ color: 0x1a2820, transparent: true, opacity: 0.4 });
+    const busColor  = new THREE.MeshLambertMaterial({ color: 0xb08c5d, emissive: 0x3a1e0c, emissiveIntensity: 1.05, fog: false }); // charred
+    const truckMat  = new THREE.MeshLambertMaterial({ color: 0x8a9164, emissive: 0x2a250e, emissiveIntensity: 0.95, fog: false }); // civilian truck
+    const glassMat  = new THREE.MeshLambertMaterial({ color: 0x4a6a5e, transparent: true, opacity: 0.55, emissive: 0x0b201a, emissiveIntensity: 0.9, fog: false });
 
     // City bus 1 — overturned on its side blocking western half
     this.overturnedBus(-18, 0, 17, busColor, glassMat, 0.08);
@@ -800,7 +870,7 @@ export class MapBuilder {
     this.scene.add(t1);
 
     // Taxi crushed
-    const taxi = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 1.8), new THREE.MeshLambertMaterial({ color: 0x6a3a1a }));
+    const taxi = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 1.8), new THREE.MeshLambertMaterial({ color: 0xc87830, emissive: 0x3a1808, emissiveIntensity: 1.0, fog: false }));
     taxi.position.set(22, 0.75, 18);
     taxi.rotation.y = 0.6;
     taxi.castShadow = true;
@@ -843,7 +913,7 @@ export class MapBuilder {
     this.scene.add(body);
 
     // Wheel remnants
-    const wheelMat = new THREE.MeshLambertMaterial({ color: 0x222222 });
+    const wheelMat = new THREE.MeshLambertMaterial({ color: 0x5a5248, emissive: 0x14100a, emissiveIntensity: 0.75, fog: false });
     for (const dz of [-3.5, 3.5]) {
       for (const side of [-1, 1]) {
         const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 10), wheelMat);
@@ -978,7 +1048,7 @@ export class MapBuilder {
 
     // 더 짙은 연기 기둥
     const smokeMat = new THREE.MeshBasicMaterial({
-      color: 0x222222, transparent: true, opacity: 0.55, depthWrite: false,
+      color: 0x3a332c, transparent: true, opacity: 0.42, depthWrite: false,
     });
     for (let i = 0; i < 8; i++) {
       const sm = new THREE.Mesh(
@@ -993,8 +1063,8 @@ export class MapBuilder {
 
   private buildMilitaryVehicles(): void {
     // Army APCs and trucks visible south of the road (approaching)
-    const armyMat = new THREE.MeshLambertMaterial({ color: 0x3a4a28 });
-    const darkMat = new THREE.MeshLambertMaterial({ color: 0x222820 });
+    const armyMat = new THREE.MeshLambertMaterial({ color: 0x87935e, emissive: 0x263018, emissiveIntensity: 1.0, fog: false });
+    const darkMat = new THREE.MeshLambertMaterial({ color: 0x5a6252, emissive: 0x181c12, emissiveIntensity: 0.9, fog: false });
 
     // 탱크와 APC가 도청을 향해 진격 중 — 훨씬 가까이
     const formations: Array<{ x: number; z: number }> = [
@@ -1046,7 +1116,7 @@ export class MapBuilder {
     }
 
     // 탱크 — 도청 코앞까지 진격
-    const tankMat = new THREE.MeshLambertMaterial({ color: 0x2e3a20 });
+    const tankMat = new THREE.MeshLambertMaterial({ color: 0x7e8a5a, emissive: 0x253018, emissiveIntensity: 1.0, fog: false });
     const tank = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.6, 7), tankMat);
     tank.position.set(5, 0.8, 45);
     tank.castShadow = true;
@@ -1082,11 +1152,11 @@ export class MapBuilder {
 
     // 광장 중앙로 가로등 역할 불꽃들
     const pathLights: Array<[number, number]> = [
-      [0, -5], [0, 0], [0, 5],
+      [0, -10], [0, -2], [0, 6], [0, 14], [0, 22],
     ];
     for (const [x, z] of pathLights) {
-      const l = new THREE.PointLight(0xff5500, 1.4, 15);
-      l.position.set(x, 3, z);
+      const l = new THREE.PointLight(0xff6a22, 2.2, 24);
+      l.position.set(x, 4, z);
       this.scene.add(l);
     }
   }

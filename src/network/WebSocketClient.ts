@@ -113,7 +113,7 @@ export class WebSocketClient {
         break;
 
       case "damage_taken":
-        window.dispatchEvent(new CustomEvent("player:hit", { detail: { damage: msg.payload.damage } }));
+        window.dispatchEvent(new CustomEvent("player:hit", { detail: msg.payload }));
         break;
 
       case "error":

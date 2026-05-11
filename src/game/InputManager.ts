@@ -9,6 +9,7 @@ export interface KeyState {
 export class InputManager {
   private keys: Record<string, boolean> = {};
   private shooting = false;
+  private reloadRequested = false;
 
   constructor() {
     window.addEventListener("keydown", this.onKeyDown);
@@ -19,6 +20,9 @@ export class InputManager {
 
   private onKeyDown = (e: KeyboardEvent): void => {
     this.keys[e.code] = true;
+    if (e.code === "KeyR" && !e.repeat) {
+      this.reloadRequested = true;
+    }
   };
 
   private onKeyUp = (e: KeyboardEvent): void => {
@@ -41,6 +45,12 @@ export class InputManager {
       moveRight: !!this.keys["KeyD"] || !!this.keys["ArrowRight"],
       shooting: this.shooting,
     };
+  }
+
+  consumeReload(): boolean {
+    const requested = this.reloadRequested;
+    this.reloadRequested = false;
+    return requested;
   }
 
   dispose(): void {

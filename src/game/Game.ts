@@ -32,6 +32,8 @@ export class Game {
   private animationId = 0;
   private offlineStartTimer = 0;
   private unsubscribeStore?: () => void;
+  private predictedAmmo: number | null = null;
+  private lastServerAmmo: number | null = null;
   private clock = new THREE.Clock();
   private canvas!: HTMLCanvasElement;
 
@@ -97,6 +99,7 @@ export class Game {
 
     this.canvas.addEventListener("mousedown", this.onMouseDown);
     window.addEventListener("game:restart", this.onRestart);
+    window.addEventListener("player:hit", this.onPlayerHit);
 
     // Enable pointer lock only while playing
     const syncPointerLock = (): void => {
@@ -112,6 +115,14 @@ export class Game {
   private onMouseDown = (e: MouseEvent): void => {
     if (e.button !== 0 || !this.playerController.locked) return;
 
+    const store = useGameStore.getState();
+    if (store.wsConnected) {
+      const serverAmmo = store.player?.ammo ?? 0;
+      const availableAmmo = this.predictedAmmo ?? serverAmmo;
+      if (availableAmmo <= 0) return;
+      this.predictedAmmo = availableAmmo - 1;
+    }
+
     this.sceneManager.camera.getWorldDirection(this._lookDir);
     const origin = this.sceneManager.camera.position.clone();
 
@@ -120,7 +131,7 @@ export class Game {
     this.viewModel.flash();
 
     // Server shoot message (when connected)
-    if (useGameStore.getState().wsConnected) {
+    if (store.wsConnected) {
       this.wsClient.send({
         type: "shoot",
         payload: {
@@ -134,6 +145,8 @@ export class Game {
   };
 
   private onRestart = (): void => {
+    this.predictedAmmo = null;
+    this.lastServerAmmo = null;
     this.wsClient.reconnect();
     clearTimeout(this.offlineStartTimer);
     this.offlineStartTimer = window.setTimeout(() => {
@@ -144,30 +157,42 @@ export class Game {
     }, 800);
   };
 
+  private onPlayerHit = (e: Event): void => {
+    const detail = (e as CustomEvent<{ source_id?: string }>).detail;
+    if (!detail?.source_id) return;
+
+    const troop = useGameStore.getState().troops.find((t) => t.id === detail.source_id);
+    if (!troop) return;
+
+    const origin = new THREE.Vector3(troop.position.x, troop.position.y + 1.15, troop.position.z);
+    const target = this.sceneManager.camera.position.clone();
+    this.bulletManager.shootHostile(origin, target);
+  };
+
   private loop = (): void => {
     this.animationId = requestAnimationFrame(this.loop);
     const delta = Math.min(this.clock.getDelta(), 0.1);
     const deltaMs = Math.round(delta * 1000);
 
     const { player, troops, wsConnected, uiPhase } = useGameStore.getState();
+    if (player && wsConnected && player.ammo !== this.lastServerAmmo) {
+      this.lastServerAmmo = player.ammo;
+      this.predictedAmmo = player.ammo;
+    }
+
+    if (uiPhase === "playing" && this.inputManager.consumeReload()) {
+      if (wsConnected && player && player.ammo < player.max_ammo) {
+        this.predictedAmmo = player.max_ammo;
+        this.wsClient.send({ type: "reload" });
+      }
+    }
 
     // ── Player movement (2층 y 고정) ─────────────────────────────────────
     const SECOND_FLOOR_EYE = 7.0;
     const FLOOR_BOUNDS = { xMin: -12.5, xMax: 12.5, zMin: -45.0, zMax: -34.5 };
     const cam = this.sceneManager.camera;
-    if (player && wsConnected) {
-      const serverX = player.position.x;
-      const serverZ = player.position.z;
-      const dx = serverX - cam.position.x;
-      const dz = serverZ - cam.position.z;
-      const distSq = dx * dx + dz * dz;
-      if (distSq > 625) {
-        cam.position.set(serverX, SECOND_FLOOR_EYE, serverZ);
-      } else if (distSq > 0.04) {
-        const correction = Math.min(1, delta * 4);
-        cam.position.x += dx * correction;
-        cam.position.z += dz * correction;
-      }
+    if (player && wsConnected && this.inputSeq === 0) {
+      cam.position.set(player.position.x, SECOND_FLOOR_EYE, player.position.z);
     }
     this.localMovement.update(delta);
     // 항상 2층 내부로 클램핑 (서버 위치 무시하고 강제 고정)
@@ -214,6 +239,7 @@ export class Game {
             left: keys.moveLeft,
             right: keys.moveRight,
           },
+          position: { x: cam.position.x, y: cam.position.y, z: cam.position.z },
           delta_ms: deltaMs,
         },
       });
@@ -249,6 +275,7 @@ export class Game {
     this.unsubscribeStore?.();
     this.canvas.removeEventListener("mousedown", this.onMouseDown);
     window.removeEventListener("game:restart", this.onRestart);
+    window.removeEventListener("player:hit", this.onPlayerHit);
     this.playerController.dispose();
     this.sceneManager.dispose();
     this.inputManager.dispose();

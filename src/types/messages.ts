@@ -9,6 +9,7 @@ export type ClientMessage =
       payload: {
         seq: number;
         move: { forward: boolean; backward: boolean; left: boolean; right: boolean };
+        position: Vector3;
         delta_ms: number;
       };
     }

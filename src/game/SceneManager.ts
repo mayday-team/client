@@ -13,8 +13,8 @@ export class SceneManager {
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
     // 1980년 5월 27일 새벽 4시 — 어둡지만 표적은 읽히는 정도
-    this.scene.background = new THREE.Color(0x0d0a08);
-    this.scene.fog = new THREE.Fog(0x0d0a08, 22, 95);
+    this.scene.background = new THREE.Color(0x100d0a);
+    this.scene.fog = new THREE.Fog(0x100d0a, 32, 115);
 
     const aspect = window.innerWidth / window.innerHeight;
 
@@ -35,6 +35,9 @@ export class SceneManager {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.shadowMap.enabled = true;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.18;
     this.renderer.autoClear = false; // 수동 clear 제어
 
     this.buildLights();
@@ -46,10 +49,11 @@ export class SceneManager {
 
   private buildLights(): void {
     // 희미한 주변광 — 새벽 어둠, 화재 빛이 간접적으로 반사되는 수준
-    const ambient = new THREE.AmbientLight(0x241b14, 0.28);
+    const ambient = new THREE.AmbientLight(0x2c2118, 0.42);
+    const skyFill = new THREE.HemisphereLight(0x2f3a55, 0x2a1a10, 0.55);
 
     // 차갑고 희미한 달빛
-    const moon = new THREE.DirectionalLight(0xd0d4ff, 0.14);
+    const moon = new THREE.DirectionalLight(0xd0d4ff, 0.22);
     moon.position.set(-20, 60, -30);
     moon.castShadow = true;
     moon.shadow.mapSize.set(2048, 2048);
@@ -61,16 +65,20 @@ export class SceneManager {
     moon.shadow.camera.bottom = -60;
 
     // 원거리 화재 — 도시 전체가 타오르는 빛의 반사
-    const distantFire = new THREE.PointLight(0xff3300, 0.5, 220);
+    const distantFire = new THREE.PointLight(0xff3a10, 0.65, 240);
     distantFire.position.set(40, 15, 60);
 
-    this.scene.add(ambient, moon, distantFire);
+    this.scene.add(ambient, skyFill, moon, distantFire);
   }
 
   private buildGround(): void {
     const geo = new THREE.PlaneGeometry(200, 200, 40, 40);
     // 재와 먼지로 덮인 어두운 땅
-    const mat = new THREE.MeshLambertMaterial({ color: 0x141210 });
+    const mat = new THREE.MeshLambertMaterial({
+      color: 0x27231c,
+      emissive: new THREE.Color(0x0b0704),
+      emissiveIntensity: 0.45,
+    });
     const ground = new THREE.Mesh(geo, mat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
