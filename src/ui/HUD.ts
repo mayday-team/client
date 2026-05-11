@@ -61,6 +61,13 @@ export class HUD {
     }, 80);
   };
 
+  // Game.ts에서 적탄이 벽에 막힌 걸 확인하면 호출 — 같은 task 내에 호출되어 프레임 출력 전 취소됨
+  cancelHitFlash(): void {
+    clearTimeout(this.hitFadeTimer);
+    this.hitOverlay.style.transition = "none";
+    this.hitOverlay.style.opacity = "0";
+  }
+
   private render(): void {
     const { uiPhase, sessionEnded } = useGameStore.getState();
 

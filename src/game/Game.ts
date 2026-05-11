@@ -195,11 +195,9 @@ export class Game {
     // 적탄이 전면벽에 막히는지 확인 — 창문이 아닌 벽이면 거기서 클리핑
     const wallHit = this.wallBlockPoint(origin, target);
     if (wallHit) {
-      // 벽에 박힘 — 짧게 그리고 피격 피드백(붉은 오버레이) 억제
+      // 벽에 박힘 — 짧게 그리고 HUD 피격 오버레이 취소(같은 task 내라 프레임에 안 보임)
       this.bulletManager.shootHostile(origin, wallHit);
-      // 다른 player:hit 리스너(HUD)의 오버레이가 이미 발화했을 수 있어
-      // 엄폐 플래그를 잠시 강제 — 다음 onHit 호출까지 안전망
-      // (HUD는 inCover 체크함)
+      this.hud.cancelHitFlash();
       return;
     }
     this.bulletManager.shootHostile(origin, target);
