@@ -123,8 +123,8 @@ export class MapBuilder {
     for (let i = 0; i < 8; i++) {
       const cx = -10.5 + i * 3;
       this.box(0.9, 0.5, 0.9, this.matStone, cx, 0.25, BZ + 7.5); // base
-      this.cyl(0.35, 0.4, 10, 10, this.matBuilding, cx, 5, BZ + 7.5); // shaft
-      this.box(0.95, 0.5, 0.95, this.matStone, cx, 10.25, BZ + 7.5); // capital
+      this.cyl(0.35, 0.4, 4.6, 10, this.matBuilding, cx, 2.55, BZ + 7.5); // shaft
+      this.box(0.95, 0.5, 0.95, this.matStone, cx, 4.95, BZ + 7.5); // capital
     }
 
     // ── Steps (6 treads) ────────────────────────────────────────────────
@@ -141,6 +141,7 @@ export class MapBuilder {
     for (let floor = 0; floor < 3; floor++) {
       for (let w = -2; w <= 2; w++) {
         if (floor === 0 && w === 0) continue; // door space
+        if (floor === 1) continue; // playable second-floor windows stay open
         this.addWindow(w * 4.5, 2.5 + floor * 4.5, BZ + 7.1, 1.5, 2, "z");
       }
     }
@@ -496,18 +497,18 @@ export class MapBuilder {
     WIN_X.forEach((wx, i) => {
       for (let r = 0; r < 2; r++) {
         const g = new THREE.Group();
-        g.position.set(wx, FLOOR_Y + 0.14 + r * 0.27, WALL_Z + 0.55);
+        g.position.set(wx, FLOOR_Y + 0.08 + r * 0.18, WALL_Z + 0.55);
         g.rotation.y = (i % 3 - 1) * 0.12;
-        const bag = new THREE.Mesh(new THREE.CapsuleGeometry(0.13, 0.9, 4, 8), sbMat);
+        const bag = new THREE.Mesh(new THREE.CapsuleGeometry(0.09, 0.65, 4, 8), sbMat);
         bag.rotation.z = Math.PI / 2;
         bag.castShadow = true;
         g.add(bag);
         this.scene.add(g);
       }
       const g2 = new THREE.Group();
-      g2.position.set(wx + 0.1, FLOOR_Y + 0.68, WALL_Z + 0.50);
+      g2.position.set(wx + 0.1, FLOOR_Y + 0.48, WALL_Z + 0.50);
       g2.rotation.y = (i % 2) * 0.2 - 0.1;
-      const top = new THREE.Mesh(new THREE.CapsuleGeometry(0.12, 0.78, 4, 8), sbMat);
+      const top = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.55, 4, 8), sbMat);
       top.rotation.z = Math.PI / 2;
       top.castShadow = true;
       g2.add(top);
@@ -559,11 +560,11 @@ export class MapBuilder {
 
     // 뒤집힌 책상들 (엄폐물)
     const desks: Array<{ x: number; z: number; ry: number }> = [
-      { x: -9,   z: BZ + 4.0, ry:  0.30 },
-      { x: -4.5, z: BZ + 4.5, ry: -0.20 },
-      { x:  4.5, z: BZ + 4.2, ry:  0.15 },
-      { x:  9,   z: BZ + 3.8, ry: -0.38 },
-      { x:  0,   z: BZ + 1.5, ry:  0.10 },
+      { x: -10.5, z: BZ - 1.2, ry:  0.30 },
+      { x:  -5.5, z: BZ - 2.0, ry: -0.20 },
+      { x:   5.5, z: BZ - 1.8, ry:  0.15 },
+      { x:  10.5, z: BZ - 1.0, ry: -0.38 },
+      { x:   0,   z: BZ - 3.0, ry:  0.10 },
     ];
     for (const d of desks) {
       const top = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.08, 0.75), woodMat);

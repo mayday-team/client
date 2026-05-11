@@ -12,9 +12,9 @@ export class SceneManager {
 
   constructor(canvas: HTMLCanvasElement) {
     this.scene = new THREE.Scene();
-    // 1980년 5월 27일 새벽 4시 — 거의 완전한 어둠
-    this.scene.background = new THREE.Color(0x080604);
-    this.scene.fog = new THREE.Fog(0x080604, 14, 80);
+    // 1980년 5월 27일 새벽 4시 — 어둡지만 표적은 읽히는 정도
+    this.scene.background = new THREE.Color(0x0d0a08);
+    this.scene.fog = new THREE.Fog(0x0d0a08, 22, 95);
 
     const aspect = window.innerWidth / window.innerHeight;
 
@@ -46,10 +46,10 @@ export class SceneManager {
 
   private buildLights(): void {
     // 희미한 주변광 — 새벽 어둠, 화재 빛이 간접적으로 반사되는 수준
-    const ambient = new THREE.AmbientLight(0x1a1510, 0.18);
+    const ambient = new THREE.AmbientLight(0x241b14, 0.28);
 
     // 차갑고 희미한 달빛
-    const moon = new THREE.DirectionalLight(0xd0d4ff, 0.08);
+    const moon = new THREE.DirectionalLight(0xd0d4ff, 0.14);
     moon.position.set(-20, 60, -30);
     moon.castShadow = true;
     moon.shadow.mapSize.set(2048, 2048);
@@ -61,7 +61,7 @@ export class SceneManager {
     moon.shadow.camera.bottom = -60;
 
     // 원거리 화재 — 도시 전체가 타오르는 빛의 반사
-    const distantFire = new THREE.PointLight(0xff2200, 0.35, 200);
+    const distantFire = new THREE.PointLight(0xff3300, 0.5, 220);
     distantFire.position.set(40, 15, 60);
 
     this.scene.add(ambient, moon, distantFire);

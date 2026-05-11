@@ -149,22 +149,28 @@ export class Game {
     const delta = Math.min(this.clock.getDelta(), 0.1);
     const deltaMs = Math.round(delta * 1000);
 
-    const { player, troops, wsConnected } = useGameStore.getState();
+    const { player, troops, wsConnected, uiPhase } = useGameStore.getState();
 
     // ── Player movement (2층 y 고정) ─────────────────────────────────────
     const SECOND_FLOOR_EYE = 7.0;
     const FLOOR_BOUNDS = { xMin: -12.5, xMax: 12.5, zMin: -45.0, zMax: -34.5 };
-    if (player && wsConnected) {
-      this.sceneManager.camera.position.set(
-        player.position.x,
-        SECOND_FLOOR_EYE,
-        player.position.z,
-      );
-    } else {
-      this.localMovement.update(delta);
-    }
-    // 항상 2층 내부로 클램핑 (서버 위치 무시하고 강제 고정)
     const cam = this.sceneManager.camera;
+    if (player && wsConnected) {
+      const serverX = player.position.x;
+      const serverZ = player.position.z;
+      const dx = serverX - cam.position.x;
+      const dz = serverZ - cam.position.z;
+      const distSq = dx * dx + dz * dz;
+      if (distSq > 625) {
+        cam.position.set(serverX, SECOND_FLOOR_EYE, serverZ);
+      } else if (distSq > 0.04) {
+        const correction = Math.min(1, delta * 4);
+        cam.position.x += dx * correction;
+        cam.position.z += dz * correction;
+      }
+    }
+    this.localMovement.update(delta);
+    // 항상 2층 내부로 클램핑 (서버 위치 무시하고 강제 고정)
     cam.position.x = Math.max(FLOOR_BOUNDS.xMin, Math.min(FLOOR_BOUNDS.xMax, cam.position.x));
     cam.position.z = Math.max(FLOOR_BOUNDS.zMin, Math.min(FLOOR_BOUNDS.zMax, cam.position.z));
     cam.position.y = SECOND_FLOOR_EYE;
@@ -183,9 +189,20 @@ export class Game {
     }
 
     // ── Send input to server ──────────────────────────────────────────────
-    if (this.playerController.locked && wsConnected) {
+    if (uiPhase === "playing" && wsConnected) {
       const keys = this.inputManager.getKeys();
       this.sceneManager.camera.getWorldDirection(this._lookDir);
+
+      this.wsClient.send({
+        type: "player_look",
+        payload: {
+          yaw: Math.atan2(this._lookDir.x, this._lookDir.z),
+          pitch: Math.atan2(
+            this._lookDir.y,
+            Math.sqrt(this._lookDir.x ** 2 + this._lookDir.z ** 2),
+          ),
+        },
+      });
 
       this.wsClient.send({
         type: "player_input",
@@ -200,21 +217,9 @@ export class Game {
           delta_ms: deltaMs,
         },
       });
-
-      this.wsClient.send({
-        type: "player_look",
-        payload: {
-          yaw: Math.atan2(this._lookDir.x, this._lookDir.z),
-          pitch: Math.atan2(
-            this._lookDir.y,
-            Math.sqrt(this._lookDir.x ** 2 + this._lookDir.z ** 2),
-          ),
-        },
-      });
     }
 
     // ── 패배 보장 타이머 (서버 없이도 추모 경험이 끝나도록) ───────────────────
-    const { uiPhase } = useGameStore.getState();
     if (uiPhase === "playing") {
       this.playingElapsed += delta;
       if (this.playingElapsed >= this.MAX_PLAY_SECONDS) {
