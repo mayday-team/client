@@ -42,15 +42,15 @@ export class EntityManager {
       const isHostile = HOSTILE_STATES.has(troop.state);
       const body = group.getObjectByName("body") as THREE.Mesh | undefined;
       if (body) {
-        const mat = body.material as THREE.MeshLambertMaterial;
+        const mat = body.material as THREE.MeshStandardMaterial;
         if (isHostile) {
           mat.color.set(0xaa2200);
           mat.emissive.set(0x6a1000);
-          mat.emissiveIntensity = 3.0;
+          mat.emissiveIntensity = 2.4;
         } else {
           mat.color.set(0x556644);
           mat.emissive.set(0x2a3818);
-          mat.emissiveIntensity = 2.5;
+          mat.emissiveIntensity = 1.9;
         }
       }
     }
@@ -64,14 +64,35 @@ export class EntityManager {
   private createTroopMesh(troop: TroopSnapshot): THREE.Group {
     const g = new THREE.Group();
 
-    // 1980년 한국 계엄군 군복 색상
-    const uniformMat = new THREE.MeshLambertMaterial({ color: 0x4a5238, emissive: new THREE.Color(0x1e2214), emissiveIntensity: 2.5 });
-    const helmetMat  = new THREE.MeshLambertMaterial({ color: 0x333d25, emissive: new THREE.Color(0x141a0e), emissiveIntensity: 2.5 });
-    const skinMat    = new THREE.MeshLambertMaterial({ color: 0xc8a070, emissive: new THREE.Color(0x5a3a18), emissiveIntensity: 1.8 });
-    const bootMat    = new THREE.MeshLambertMaterial({ color: 0x2a2018, emissive: new THREE.Color(0x0e0c08), emissiveIntensity: 2.0 });
-    const beltMat    = new THREE.MeshLambertMaterial({ color: 0x3a3020, emissive: new THREE.Color(0x141008), emissiveIntensity: 2.0 });
-    const rifleMat   = new THREE.MeshLambertMaterial({ color: 0x1e1e18, emissive: new THREE.Color(0x0c0c08), emissiveIntensity: 2.0 });
-    const woodMat    = new THREE.MeshLambertMaterial({ color: 0x3c2210, emissive: new THREE.Color(0x180e06), emissiveIntensity: 2.0 });
+    // 1980년 한국 계엄군 군복 색상 — 거칠기/금속성으로 표면 차별화
+    const uniformMat = new THREE.MeshStandardMaterial({
+      color: 0x4a5238, roughness: 0.85, metalness: 0.02,
+      emissive: new THREE.Color(0x1e2214), emissiveIntensity: 1.9,
+    });
+    const helmetMat  = new THREE.MeshStandardMaterial({
+      color: 0x333d25, roughness: 0.45, metalness: 0.55, // 강철 헬멧
+      emissive: new THREE.Color(0x141a0e), emissiveIntensity: 1.9,
+    });
+    const skinMat    = new THREE.MeshStandardMaterial({
+      color: 0xc8a070, roughness: 0.75, metalness: 0,
+      emissive: new THREE.Color(0x5a3a18), emissiveIntensity: 1.4,
+    });
+    const bootMat    = new THREE.MeshStandardMaterial({
+      color: 0x2a2018, roughness: 0.55, metalness: 0.1, // 가죽
+      emissive: new THREE.Color(0x0e0c08), emissiveIntensity: 1.5,
+    });
+    const beltMat    = new THREE.MeshStandardMaterial({
+      color: 0x3a3020, roughness: 0.6, metalness: 0.1,
+      emissive: new THREE.Color(0x141008), emissiveIntensity: 1.5,
+    });
+    const rifleMat   = new THREE.MeshStandardMaterial({
+      color: 0x1e1e18, roughness: 0.35, metalness: 0.75, // 강철 총신
+      emissive: new THREE.Color(0x0c0c08), emissiveIntensity: 1.5,
+    });
+    const woodMat    = new THREE.MeshStandardMaterial({
+      color: 0x3c2210, roughness: 0.85, metalness: 0.04,
+      emissive: new THREE.Color(0x180e06), emissiveIntensity: 1.5,
+    });
 
     const mesh = (geo: THREE.BufferGeometry, mat: THREE.Material, x=0, y=0, z=0): THREE.Mesh => {
       const m = new THREE.Mesh(geo, mat);

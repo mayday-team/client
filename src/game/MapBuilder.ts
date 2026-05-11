@@ -1,26 +1,103 @@
 import * as THREE from "three";
+import { makeNoiseTexture, makeNoiseNormalMap } from "./textures";
+
+// 절차적 텍스처 — 정의 시점에 한 번만 생성, 캐시됨
+const TEX_CONCRETE = makeNoiseTexture(512, "concrete");
+const TEX_CONCRETE_N = makeNoiseNormalMap(512, "concrete", 1.2);
+const TEX_PLASTER = makeNoiseTexture(512, "plaster");
+const TEX_PLASTER_N = makeNoiseNormalMap(512, "plaster", 0.8);
+const TEX_ASPHALT = makeNoiseTexture(512, "asphalt");
+const TEX_ASPHALT_N = makeNoiseNormalMap(512, "asphalt", 1.0);
+const TEX_WOOD = makeNoiseTexture(512, "wood");
+const TEX_WOOD_N = makeNoiseNormalMap(512, "wood", 0.6);
+const TEX_FABRIC = makeNoiseTexture(256, "fabric");
+
+function tiled(tex: THREE.Texture, repeat: number): THREE.Texture {
+  const t = tex.clone();
+  t.needsUpdate = true;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeat, repeat);
+  t.anisotropy = 8;
+  return t;
+}
 
 export class MapBuilder {
   private readonly BZ = -40;
 
-  // 그을리고 전쟁 피해를 입은 1980년 5월 27일 새벽의 색상
-  private readonly matBuilding = new THREE.MeshLambertMaterial({ color: 0x5a5248 });
-  private readonly matStone = new THREE.MeshLambertMaterial({ color: 0x3e3a36 });
-  private readonly matRoof = new THREE.MeshLambertMaterial({ color: 0x2a3028 });
-  private readonly matPlaza = new THREE.MeshLambertMaterial({ color: 0x5a4d3b, emissive: 0x181008, emissiveIntensity: 0.7 });
-  private readonly matRoad = new THREE.MeshLambertMaterial({ color: 0x48423a, emissive: 0x0e0a07, emissiveIntensity: 0.55 });
-  private readonly matWindow = new THREE.MeshLambertMaterial({ color: 0x0a1018 });
-  private readonly matDoor = new THREE.MeshLambertMaterial({ color: 0x080810 });
-  private readonly matTrunk = new THREE.MeshLambertMaterial({ color: 0x2e1e0c });
-  private readonly matLeaves = new THREE.MeshLambertMaterial({ color: 0x141a0c });
-  private readonly matPole = new THREE.MeshLambertMaterial({ color: 0x555555 });
-  private readonly matFlag = new THREE.MeshLambertMaterial({ color: 0x6a1010, side: THREE.DoubleSide });
-  private readonly matWater = new THREE.MeshLambertMaterial({ color: 0x1a2428, transparent: true, opacity: 0.75 });
-  private readonly matSidewalk = new THREE.MeshLambertMaterial({ color: 0x5a5248, emissive: 0x100b07, emissiveIntensity: 0.5 });
-  private readonly matPath = new THREE.MeshLambertMaterial({ color: 0x6a5438, emissive: 0x1a1007, emissiveIntensity: 0.75 });
-  private readonly matGrass = new THREE.MeshLambertMaterial({ color: 0x28301d, emissive: 0x040602, emissiveIntensity: 0.35 });
-  private readonly matMark = new THREE.MeshLambertMaterial({ color: 0x888880 });
-  private readonly matCurb = new THREE.MeshLambertMaterial({ color: 0x555047, emissive: 0x080604, emissiveIntensity: 0.35 });
+  // ── PBR 머티리얼 — 빛 반응이 살아있는 1980.5.27 새벽의 색상 ────────────────
+  // roughness: 1.0=완전 매트, 0.0=거울. metalness: 0=비금속, 1=금속.
+  private readonly matBuilding = new THREE.MeshStandardMaterial({
+    color: 0x6a6358, map: tiled(TEX_PLASTER, 4), normalMap: tiled(TEX_PLASTER_N, 4),
+    roughness: 0.92, metalness: 0.02,
+  });
+  private readonly matStone = new THREE.MeshStandardMaterial({
+    color: 0x4a4640, map: tiled(TEX_CONCRETE, 3), normalMap: tiled(TEX_CONCRETE_N, 3),
+    roughness: 0.85, metalness: 0.04,
+  });
+  private readonly matRoof = new THREE.MeshStandardMaterial({
+    color: 0x32382e, roughness: 0.75, metalness: 0.10,
+  });
+  private readonly matPlaza = new THREE.MeshStandardMaterial({
+    color: 0x6a5d4b, map: tiled(TEX_CONCRETE, 16), normalMap: tiled(TEX_CONCRETE_N, 16),
+    roughness: 0.88, metalness: 0.03,
+    emissive: new THREE.Color(0x181008), emissiveIntensity: 0.6,
+  });
+  private readonly matRoad = new THREE.MeshStandardMaterial({
+    color: 0x4a443c, map: tiled(TEX_ASPHALT, 20), normalMap: tiled(TEX_ASPHALT_N, 20),
+    roughness: 0.78, metalness: 0.05,
+    emissive: new THREE.Color(0x0e0a07), emissiveIntensity: 0.45,
+  });
+  // 창문 — 어두운 거울 같은 반사
+  private readonly matWindow = new THREE.MeshStandardMaterial({
+    color: 0x0a1018, roughness: 0.15, metalness: 0.6,
+    emissive: new THREE.Color(0x1a2438), emissiveIntensity: 0.4,
+  });
+  private readonly matDoor = new THREE.MeshStandardMaterial({
+    color: 0x140e0c, roughness: 0.65, metalness: 0.15,
+  });
+  private readonly matTrunk = new THREE.MeshStandardMaterial({
+    color: 0x3a2814, map: tiled(TEX_WOOD, 2), normalMap: tiled(TEX_WOOD_N, 2),
+    roughness: 0.95, metalness: 0,
+  });
+  private readonly matLeaves = new THREE.MeshStandardMaterial({
+    color: 0x1c2410, roughness: 1.0, metalness: 0,
+  });
+  // 깃대·전봇대 — 금속 광택
+  private readonly matPole = new THREE.MeshStandardMaterial({
+    color: 0x6a6864, roughness: 0.4, metalness: 0.85,
+  });
+  private readonly matFlag = new THREE.MeshStandardMaterial({
+    color: 0x7a1414, map: tiled(TEX_FABRIC, 2),
+    roughness: 0.95, metalness: 0, side: THREE.DoubleSide,
+  });
+  // 물 — 낮은 거칠기, 약한 금속성으로 잔물결 같은 반사
+  private readonly matWater = new THREE.MeshStandardMaterial({
+    color: 0x1a2428, roughness: 0.05, metalness: 0.3,
+    transparent: true, opacity: 0.78,
+  });
+  private readonly matSidewalk = new THREE.MeshStandardMaterial({
+    color: 0x665e54, map: tiled(TEX_CONCRETE, 18), normalMap: tiled(TEX_CONCRETE_N, 18),
+    roughness: 0.92, metalness: 0.02,
+    emissive: new THREE.Color(0x100b07), emissiveIntensity: 0.4,
+  });
+  private readonly matPath = new THREE.MeshStandardMaterial({
+    color: 0x7a6240, map: tiled(TEX_CONCRETE, 6), normalMap: tiled(TEX_CONCRETE_N, 6),
+    roughness: 0.95, metalness: 0,
+    emissive: new THREE.Color(0x1a1007), emissiveIntensity: 0.6,
+  });
+  private readonly matGrass = new THREE.MeshStandardMaterial({
+    color: 0x2d3520, roughness: 1.0, metalness: 0,
+    emissive: new THREE.Color(0x040602), emissiveIntensity: 0.3,
+  });
+  private readonly matMark = new THREE.MeshStandardMaterial({
+    color: 0x9a9a90, roughness: 0.7, metalness: 0.05,
+    emissive: new THREE.Color(0x1a1a16), emissiveIntensity: 0.4,
+  });
+  private readonly matCurb = new THREE.MeshStandardMaterial({
+    color: 0x5e5850, map: tiled(TEX_CONCRETE, 6), normalMap: tiled(TEX_CONCRETE_N, 6),
+    roughness: 0.9, metalness: 0.02,
+    emissive: new THREE.Color(0x080604), emissiveIntensity: 0.3,
+  });
 
   constructor(private scene: THREE.Scene) {
     this.buildGrassPatches();
@@ -189,7 +266,7 @@ export class MapBuilder {
     this.plane(90, 50, this.matPlaza, 0, 0.01, -8);
 
     // Border strips
-    const borderMat = new THREE.MeshLambertMaterial({ color: 0x9a9090 });
+    const borderMat = new THREE.MeshStandardMaterial({ color: 0x9a9090 });
     for (const dz of [-24.5, 24.5]) {
       const strip = new THREE.Mesh(new THREE.PlaneGeometry(90, 1.2), borderMat);
       strip.rotation.x = -Math.PI / 2;
@@ -300,7 +377,7 @@ export class MapBuilder {
       const trunkH = 3 + (i % 3) * 0.6;
       const leafR = 1.8 + (i % 2) * 0.7;
       this.cyl(0.18, 0.25, trunkH, 6, this.matTrunk, x, trunkH / 2, z);
-      const lMat = new THREE.MeshLambertMaterial({ color: leafColors[i % 3] });
+      const lMat = new THREE.MeshStandardMaterial({ color: leafColors[i % 3] });
       const add = (r: number, dx: number, dy: number, dz: number) => {
         const s = new THREE.Mesh(new THREE.SphereGeometry(r, 8, 6), lMat);
         s.position.set(x + dx, trunkH + dy, z + dz);
@@ -346,9 +423,21 @@ export class MapBuilder {
     const WALL_W  = 28;
     const WALL_H  = 16;
 
-    const iMat = new THREE.MeshLambertMaterial({ color: 0xc8b89a, side: THREE.DoubleSide });
-    const floorMat = new THREE.MeshLambertMaterial({ color: 0x8a7550, side: THREE.DoubleSide });
-    const ceilMat  = new THREE.MeshLambertMaterial({ color: 0xb8a888, side: THREE.DoubleSide });
+    const iMat = new THREE.MeshStandardMaterial({
+      color: 0xc8b89a, side: THREE.DoubleSide,
+      map: tiled(TEX_PLASTER, 3), normalMap: tiled(TEX_PLASTER_N, 3),
+      roughness: 0.88, metalness: 0.02,
+    });
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x8a7550, side: THREE.DoubleSide,
+      map: tiled(TEX_WOOD, 4), normalMap: tiled(TEX_WOOD_N, 4),
+      roughness: 0.75, metalness: 0.05,
+    });
+    const ceilMat  = new THREE.MeshStandardMaterial({
+      color: 0xb8a888, side: THREE.DoubleSide,
+      map: tiled(TEX_PLASTER, 3), normalMap: tiled(TEX_PLASTER_N, 3),
+      roughness: 0.9, metalness: 0.02,
+    });
 
     // ── Front wall panels with openings ──────────────────────────────────
 
@@ -382,7 +471,7 @@ export class MapBuilder {
     }
 
     // Window sill ledges (visible from inside, protrude toward player)
-    const sillMat = new THREE.MeshLambertMaterial({ color: 0xd0c0a0 });
+    const sillMat = new THREE.MeshStandardMaterial({ color: 0xd0c0a0 });
     for (const { yLo } of WIN_FLOORS) {
       for (const wx of WIN_X) {
         const sill = new THREE.Mesh(
@@ -424,7 +513,7 @@ export class MapBuilder {
     }
 
     // ── Sandbag barricades under each ground-floor window ─────────────────
-    const sandbagMat = new THREE.MeshLambertMaterial({ color: 0x7a6840 });
+    const sandbagMat = new THREE.MeshStandardMaterial({ color: 0x7a6840 });
 
     WIN_X.forEach((wx, i) => {
       for (let r = 0; r < 2; r++) {
@@ -466,12 +555,24 @@ export class MapBuilder {
     const WIN_YLO = 6.0;
     const WIN_YHI = 8.0;
 
-    const wallMat  = new THREE.MeshLambertMaterial({ color: 0x6a5e50, side: THREE.DoubleSide,
-      emissive: new THREE.Color(0x2a1e14), emissiveIntensity: 0.8 });
-    const floorMat = new THREE.MeshLambertMaterial({ color: 0x7a6346,
-      emissive: new THREE.Color(0x2c1f10), emissiveIntensity: 1.15 });
-    const ceilMat  = new THREE.MeshLambertMaterial({ color: 0x5a5248, side: THREE.DoubleSide,
-      emissive: new THREE.Color(0x1e1a16), emissiveIntensity: 0.8 });
+    const wallMat  = new THREE.MeshStandardMaterial({
+      color: 0x6a5e50, side: THREE.DoubleSide,
+      map: tiled(TEX_PLASTER, 4), normalMap: tiled(TEX_PLASTER_N, 4),
+      roughness: 0.88, metalness: 0.02,
+      emissive: new THREE.Color(0x2a1e14), emissiveIntensity: 0.7,
+    });
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: 0x7a6346,
+      map: tiled(TEX_WOOD, 5), normalMap: tiled(TEX_WOOD_N, 5),
+      roughness: 0.72, metalness: 0.06,
+      emissive: new THREE.Color(0x2c1f10), emissiveIntensity: 0.95,
+    });
+    const ceilMat  = new THREE.MeshStandardMaterial({
+      color: 0x5a5248, side: THREE.DoubleSide,
+      map: tiled(TEX_PLASTER, 3), normalMap: tiled(TEX_PLASTER_N, 3),
+      roughness: 0.9, metalness: 0.02,
+      emissive: new THREE.Color(0x1e1a16), emissiveIntensity: 0.7,
+    });
 
     // ── 바닥 ─────────────────────────────────────────────────────────────
     const floor2 = new THREE.Mesh(new THREE.PlaneGeometry(WALL_W, DEPTH), floorMat);
@@ -530,7 +631,7 @@ export class MapBuilder {
     }
 
     // ── 창틀 턱 (2층) ────────────────────────────────────────────────────
-    const sillMat = new THREE.MeshLambertMaterial({ color: 0x6a5a48,
+    const sillMat = new THREE.MeshStandardMaterial({ color: 0x6a5a48,
       emissive: new THREE.Color(0x241c10), emissiveIntensity: 0.9 });
     for (const wx of WIN_X) {
       const sill = new THREE.Mesh(new THREE.BoxGeometry(WIN_W + 0.3, 0.10, WALL_T + 0.3), sillMat);
@@ -540,7 +641,7 @@ export class MapBuilder {
     }
 
     // ── 2층 창문 모래주머니 ────────────────────────────────────────────────
-    const sbMat = new THREE.MeshLambertMaterial({ color: 0x5a4820,
+    const sbMat = new THREE.MeshStandardMaterial({ color: 0x5a4820,
       emissive: new THREE.Color(0x1a1408), emissiveIntensity: 0.7 });
     WIN_X.forEach((wx, i) => {
       for (let r = 0; r < 2; r++) {
@@ -595,15 +696,15 @@ export class MapBuilder {
   }
 
   private buildSecondFloorProps(fy: number, BZ: number): void {
-    const woodMat  = new THREE.MeshLambertMaterial({ color: 0x2e1c0c,
+    const woodMat  = new THREE.MeshStandardMaterial({ color: 0x2e1c0c,
       emissive: new THREE.Color(0x0e0804), emissiveIntensity: 0.8 });
-    const metalMat = new THREE.MeshLambertMaterial({ color: 0x2a2820,
+    const metalMat = new THREE.MeshStandardMaterial({ color: 0x2a2820,
       emissive: new THREE.Color(0x080807), emissiveIntensity: 0.9 });
-    const creteMat = new THREE.MeshLambertMaterial({ color: 0x3a3530,
+    const creteMat = new THREE.MeshStandardMaterial({ color: 0x3a3530,
       emissive: new THREE.Color(0x0e0c0b), emissiveIntensity: 0.7 });
-    const sbMat    = new THREE.MeshLambertMaterial({ color: 0x5a4820,
+    const sbMat    = new THREE.MeshStandardMaterial({ color: 0x5a4820,
       emissive: new THREE.Color(0x1a1408), emissiveIntensity: 0.7 });
-    const paperMat = new THREE.MeshLambertMaterial({ color: 0x9a9070,
+    const paperMat = new THREE.MeshStandardMaterial({ color: 0x9a9070,
       emissive: new THREE.Color(0x28261e), emissiveIntensity: 0.8 });
 
     // 뒤집힌 책상들 (엄폐물)
@@ -652,7 +753,7 @@ export class MapBuilder {
     }
 
     // 탄약 상자 / 보급 박스
-    const crateMat2 = new THREE.MeshLambertMaterial({ color: 0x2e3a1c,
+    const crateMat2 = new THREE.MeshStandardMaterial({ color: 0x2e3a1c,
       emissive: new THREE.Color(0x0a0e08), emissiveIntensity: 0.8 });
     const crates: Array<{ x: number; z: number; ry?: number }> = [
       { x: -3, z: BZ - 2.5 },
@@ -698,9 +799,9 @@ export class MapBuilder {
   }
 
   private buildStaircase(topFloorY: number, BZ: number): void {
-    const stepMat = new THREE.MeshLambertMaterial({ color: 0x3a3228,
+    const stepMat = new THREE.MeshStandardMaterial({ color: 0x3a3228,
       emissive: new THREE.Color(0x100e0c), emissiveIntensity: 0.7 });
-    const railMat = new THREE.MeshLambertMaterial({ color: 0x1e1a14,
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x1e1a14,
       emissive: new THREE.Color(0x080604), emissiveIntensity: 0.9 });
 
     const steps = 8;
@@ -774,10 +875,18 @@ export class MapBuilder {
       { x:  55, z: -68, w: 22, h: 12, d: 14, color: 0x909080 },
     ];
 
-    const winMat = new THREE.MeshLambertMaterial({ color: 0x60799a, emissive: 0x111f30, emissiveIntensity: 1.0, fog: false });
+    // 멀리 보이는 빌딩 창문 — 약한 백열등 빛이 새어 나오는 느낌, 블룸이 발광 살림
+    const winMat = new THREE.MeshStandardMaterial({
+      color: 0x4a5570, roughness: 0.25, metalness: 0.4,
+      emissive: new THREE.Color(0xffa050), emissiveIntensity: 1.8, fog: false,
+    });
 
     for (const s of specs) {
-      const bMat = new THREE.MeshLambertMaterial({ color: s.color, emissive: 0x302016, emissiveIntensity: 0.95, fog: false });
+      const bMat = new THREE.MeshStandardMaterial({
+        color: s.color, roughness: 0.85, metalness: 0.05,
+        map: tiled(TEX_CONCRETE, 5), normalMap: tiled(TEX_CONCRETE_N, 5),
+        emissive: new THREE.Color(0x302016), emissiveIntensity: 0.8, fog: false,
+      });
       const body = new THREE.Mesh(new THREE.BoxGeometry(s.w, s.h, s.d), bMat);
       body.position.set(s.x, s.h / 2, s.z);
       body.castShadow = true;
@@ -799,7 +908,7 @@ export class MapBuilder {
       // Rooftop parapet
       const parapet = new THREE.Mesh(
         new THREE.BoxGeometry(s.w + 0.3, 0.6, s.d + 0.3),
-        new THREE.MeshLambertMaterial({ color: (s.color & 0xfefefe) - 0x101010, emissive: 0x241810, emissiveIntensity: 0.8, fog: false }),
+        new THREE.MeshStandardMaterial({ color: (s.color & 0xfefefe) - 0x101010, emissive: 0x241810, emissiveIntensity: 0.8, fog: false }),
       );
       parapet.position.set(s.x, s.h + 0.3, s.z);
       this.scene.add(parapet);
@@ -810,7 +919,7 @@ export class MapBuilder {
     specs.slice(0, 8).forEach((s, i) => {
       const aw = new THREE.Mesh(
         new THREE.BoxGeometry(s.w, 0.4, 1.2),
-        new THREE.MeshLambertMaterial({ color: awningColors[i % 4], emissive: 0x100807, emissiveIntensity: 0.85, fog: false }),
+        new THREE.MeshStandardMaterial({ color: awningColors[i % 4], emissive: 0x100807, emissiveIntensity: 0.85, fog: false }),
       );
       aw.position.set(s.x, 3.2, s.z + s.d / 2 + 0.5);
       this.scene.add(aw);
@@ -852,9 +961,19 @@ export class MapBuilder {
   private buildVehicleBarricades(): void {
     // Overturned/burned civilian buses and trucks blocking 금남로
 
-    const busColor  = new THREE.MeshLambertMaterial({ color: 0xb08c5d, emissive: 0x3a1e0c, emissiveIntensity: 1.05, fog: false }); // charred
-    const truckMat  = new THREE.MeshLambertMaterial({ color: 0x8a9164, emissive: 0x2a250e, emissiveIntensity: 0.95, fog: false }); // civilian truck
-    const glassMat  = new THREE.MeshLambertMaterial({ color: 0x4a6a5e, transparent: true, opacity: 0.55, emissive: 0x0b201a, emissiveIntensity: 0.9, fog: false });
+    const busColor  = new THREE.MeshStandardMaterial({
+      color: 0xb08c5d, roughness: 0.55, metalness: 0.55,
+      emissive: new THREE.Color(0x3a1e0c), emissiveIntensity: 0.95, fog: false,
+    });
+    const truckMat  = new THREE.MeshStandardMaterial({
+      color: 0x8a9164, roughness: 0.5, metalness: 0.6,
+      emissive: new THREE.Color(0x2a250e), emissiveIntensity: 0.85, fog: false,
+    });
+    const glassMat  = new THREE.MeshStandardMaterial({
+      color: 0x4a6a5e, roughness: 0.12, metalness: 0.4,
+      transparent: true, opacity: 0.55,
+      emissive: new THREE.Color(0x0b201a), emissiveIntensity: 0.85, fog: false,
+    });
 
     // City bus 1 — overturned on its side blocking western half
     this.overturnedBus(-18, 0, 17, busColor, glassMat, 0.08);
@@ -870,14 +989,14 @@ export class MapBuilder {
     this.scene.add(t1);
 
     // Taxi crushed
-    const taxi = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 1.8), new THREE.MeshLambertMaterial({ color: 0xc87830, emissive: 0x3a1808, emissiveIntensity: 1.0, fog: false }));
+    const taxi = new THREE.Mesh(new THREE.BoxGeometry(4, 1.5, 1.8), new THREE.MeshStandardMaterial({ color: 0xc87830, emissive: 0x3a1808, emissiveIntensity: 1.0, fog: false }));
     taxi.position.set(22, 0.75, 18);
     taxi.rotation.y = 0.6;
     taxi.castShadow = true;
     this.scene.add(taxi);
 
     // Sandbag walls flanking plaza entry
-    const sbMat = new THREE.MeshLambertMaterial({ color: 0x7a6840 });
+    const sbMat = new THREE.MeshStandardMaterial({ color: 0x7a6840 });
     for (let i = 0; i < 8; i++) {
       const g = new THREE.Group();
       g.position.set(-38 + i * 1.05, 0.14 + Math.floor(i / 4) * 0.27, 14.5);
@@ -902,8 +1021,8 @@ export class MapBuilder {
 
   private overturnedBus(
     x: number, y: number, z: number,
-    mat: THREE.MeshLambertMaterial,
-    glassMat: THREE.MeshLambertMaterial,
+    mat: THREE.MeshStandardMaterial,
+    glassMat: THREE.MeshStandardMaterial,
     tilt: number,
   ): void {
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.2, 10.5), mat);
@@ -913,7 +1032,7 @@ export class MapBuilder {
     this.scene.add(body);
 
     // Wheel remnants
-    const wheelMat = new THREE.MeshLambertMaterial({ color: 0x5a5248, emissive: 0x14100a, emissiveIntensity: 0.75, fog: false });
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x5a5248, emissive: 0x14100a, emissiveIntensity: 0.75, fog: false });
     for (const dz of [-3.5, 3.5]) {
       for (const side of [-1, 1]) {
         const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 0.3, 10), wheelMat);
@@ -926,10 +1045,10 @@ export class MapBuilder {
 
   private buildDebrisAndFurniture(): void {
     // Overturned desks, chairs, concrete blocks used as barricades
-    const concMat = new THREE.MeshLambertMaterial({ color: 0x888880 });
-    const woodMat = new THREE.MeshLambertMaterial({ color: 0x6a4a28 });
+    const concMat = new THREE.MeshStandardMaterial({ color: 0x888880 });
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0x6a4a28 });
 
-    const debrisItems: Array<{ x: number; z: number; w: number; h: number; d: number; mat: THREE.MeshLambertMaterial; ry: number }> = [
+    const debrisItems: Array<{ x: number; z: number; w: number; h: number; d: number; mat: THREE.MeshStandardMaterial; ry: number }> = [
       { x: -12, z: 15.5, w: 0.6, h: 0.7, d: 1.2, mat: woodMat, ry: 0.3 },  // desk
       { x:  -8, z: 16.0, w: 0.5, h: 0.5, d: 0.5, mat: woodMat, ry: -0.5 }, // chair
       { x:  -5, z: 14.8, w: 1.5, h: 0.5, d: 0.5, mat: concMat, ry: 0.1 },  // concrete block
@@ -970,7 +1089,7 @@ export class MapBuilder {
       { x:  20, y: 3.5,z: 14,  w:  8, ry: 0,            color: 0xcc1111 },
     ];
 
-    const mat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
+    const mat = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide });
 
     for (const b of bannerData) {
       const bMat = mat.clone();
@@ -983,7 +1102,7 @@ export class MapBuilder {
       // Banner hanging rope (thin box)
       const rope = new THREE.Mesh(
         new THREE.BoxGeometry(b.w, 0.05, 0.05),
-        new THREE.MeshLambertMaterial({ color: 0x554433 }),
+        new THREE.MeshStandardMaterial({ color: 0x554433 }),
       );
       rope.position.set(b.x, b.y + 0.4, b.z);
       rope.rotation.y = b.ry;
@@ -991,7 +1110,7 @@ export class MapBuilder {
     }
 
     // Flags on plaza lamp posts / poles
-    const flagMat = new THREE.MeshLambertMaterial({ color: 0xcc2222, side: THREE.DoubleSide });
+    const flagMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, side: THREE.DoubleSide });
     for (const x of [-35, -25, 25, 35]) {
       const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.8, 1.0), flagMat);
       flag.position.set(x, 5, 15.5);
@@ -999,7 +1118,7 @@ export class MapBuilder {
 
       const pole = new THREE.Mesh(
         new THREE.CylinderGeometry(0.06, 0.06, 5.5, 6),
-        new THREE.MeshLambertMaterial({ color: 0x888888 }),
+        new THREE.MeshStandardMaterial({ color: 0x888888 }),
       );
       pole.position.set(x, 2.75, 15.5);
       this.scene.add(pole);
@@ -1025,9 +1144,10 @@ export class MapBuilder {
   }
 
   private addFire(x: number, z: number, scale = 1): void {
-    const fire1 = new THREE.MeshBasicMaterial({ color: 0xff3300 });
-    const fire2 = new THREE.MeshBasicMaterial({ color: 0xff6600 });
-    const fire3 = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    // HDR(>1) 색상으로 블룸을 강하게 트리거 — 톤매핑 후 풍부한 발광
+    const fire1 = new THREE.MeshBasicMaterial({ color: new THREE.Color(3.2, 0.55, 0.08), fog: false });
+    const fire2 = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 1.1, 0.18), fog: false });
+    const fire3 = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.6, 0.35), fog: false });
 
     const f1 = new THREE.Mesh(new THREE.SphereGeometry(1.5 * scale, 7, 5), fire1);
     f1.position.set(x, 2.2 * scale, z);
@@ -1063,8 +1183,14 @@ export class MapBuilder {
 
   private buildMilitaryVehicles(): void {
     // Army APCs and trucks visible south of the road (approaching)
-    const armyMat = new THREE.MeshLambertMaterial({ color: 0x87935e, emissive: 0x263018, emissiveIntensity: 1.0, fog: false });
-    const darkMat = new THREE.MeshLambertMaterial({ color: 0x5a6252, emissive: 0x181c12, emissiveIntensity: 0.9, fog: false });
+    const armyMat = new THREE.MeshStandardMaterial({
+      color: 0x87935e, roughness: 0.6, metalness: 0.55,
+      emissive: new THREE.Color(0x263018), emissiveIntensity: 0.9, fog: false,
+    });
+    const darkMat = new THREE.MeshStandardMaterial({
+      color: 0x5a6252, roughness: 0.45, metalness: 0.7,
+      emissive: new THREE.Color(0x181c12), emissiveIntensity: 0.8, fog: false,
+    });
 
     // 탱크와 APC가 도청을 향해 진격 중 — 훨씬 가까이
     const formations: Array<{ x: number; z: number }> = [
@@ -1116,7 +1242,10 @@ export class MapBuilder {
     }
 
     // 탱크 — 도청 코앞까지 진격
-    const tankMat = new THREE.MeshLambertMaterial({ color: 0x7e8a5a, emissive: 0x253018, emissiveIntensity: 1.0, fog: false });
+    const tankMat = new THREE.MeshStandardMaterial({
+      color: 0x7e8a5a, roughness: 0.55, metalness: 0.65,
+      emissive: new THREE.Color(0x253018), emissiveIntensity: 0.85, fog: false,
+    });
     const tank = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.6, 7), tankMat);
     tank.position.set(5, 0.8, 45);
     tank.castShadow = true;
