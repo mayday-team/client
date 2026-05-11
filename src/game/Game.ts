@@ -53,12 +53,37 @@ export class Game {
   // 2층 창문 x 좌표 (MapBuilder WIN_X 와 동일)
   private static readonly WIN_X = [-9, -4.5, 0, 4.5, 9] as const;
   private static readonly WIN_WALL_Z = -33.4;
+  // 2층 창문 개구부 — 폭 1.5m(반폭 0.75), y 범위 6.0~8.0
+  private static readonly WIN_HALF_W = 0.78; // 약간 여유
+  private static readonly WIN_Y_LO = 5.9;
+  private static readonly WIN_Y_HI = 8.1;
 
   private isInCover(pos: THREE.Vector3): boolean {
     // 전면벽 1.5m 이상 안쪽이면 무조건 엄폐
     if (pos.z < Game.WIN_WALL_Z - 1.5) return true;
     // 전면벽 근처지만 창문 사이 벽 앞이면 엄폐
     return !Game.WIN_X.some(wx => Math.abs(pos.x - wx) < 1.3);
+  }
+
+  // 적탄 경로가 전면벽과 교차하면 그 지점 반환(벽 차단). 창문 통과면 null.
+  // origin은 외부(z > WALL_Z), target은 내부(z < WALL_Z)인 경우만 의미 있음.
+  private wallBlockPoint(origin: THREE.Vector3, target: THREE.Vector3): THREE.Vector3 | null {
+    const W = Game.WIN_WALL_Z;
+    const z0 = origin.z, z1 = target.z;
+    if ((z0 - W) * (z1 - W) >= 0) return null; // 둘 다 같은 쪽
+
+    const t = (W - z0) / (z1 - z0);
+    if (t < 0 || t > 1) return null;
+    const xHit = origin.x + (target.x - origin.x) * t;
+    const yHit = origin.y + (target.y - origin.y) * t;
+
+    // 창문 개구부 안인지 확인 (2층 창문)
+    const inWindow =
+      yHit >= Game.WIN_Y_LO && yHit <= Game.WIN_Y_HI &&
+      Game.WIN_X.some((wx) => Math.abs(xHit - wx) < Game.WIN_HALF_W);
+
+    if (inWindow) return null;       // 창문 통과 — 그대로 진행
+    return new THREE.Vector3(xHit, yHit, W); // 벽 차단 지점
   }
 
   init(): void {
@@ -166,6 +191,17 @@ export class Game {
 
     const origin = new THREE.Vector3(troop.position.x, troop.position.y + 1.15, troop.position.z);
     const target = this.sceneManager.camera.position.clone();
+
+    // 적탄이 전면벽에 막히는지 확인 — 창문이 아닌 벽이면 거기서 클리핑
+    const wallHit = this.wallBlockPoint(origin, target);
+    if (wallHit) {
+      // 벽에 박힘 — 짧게 그리고 피격 피드백(붉은 오버레이) 억제
+      this.bulletManager.shootHostile(origin, wallHit);
+      // 다른 player:hit 리스너(HUD)의 오버레이가 이미 발화했을 수 있어
+      // 엄폐 플래그를 잠시 강제 — 다음 onHit 호출까지 안전망
+      // (HUD는 inCover 체크함)
+      return;
+    }
     this.bulletManager.shootHostile(origin, target);
   };
 
@@ -261,6 +297,7 @@ export class Game {
       ? troops
       : this.offlineSoldiers.update(delta);
     this.entityManager.updateTroops(activeTroops);
+    this.entityManager.tick(delta);
 
     // ── Client-side systems ───────────────────────────────────────────────
     this.bulletManager.update(delta);
