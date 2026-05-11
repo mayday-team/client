@@ -31,8 +31,9 @@ export class MapBuilder {
     roughness: 0.92, metalness: 0.02,
   });
   private readonly matStone = new THREE.MeshStandardMaterial({
-    color: 0x4a4640, map: tiled(TEX_CONCRETE, 3), normalMap: tiled(TEX_CONCRETE_N, 3),
+    color: 0x7a7468, map: tiled(TEX_CONCRETE, 3), normalMap: tiled(TEX_CONCRETE_N, 3),
     roughness: 0.85, metalness: 0.04,
+    emissive: new THREE.Color(0x1a1612), emissiveIntensity: 0.55,
   });
   private readonly matRoof = new THREE.MeshStandardMaterial({
     color: 0x32382e, roughness: 0.75, metalness: 0.10,
@@ -56,11 +57,9 @@ export class MapBuilder {
     color: 0x140e0c, roughness: 0.65, metalness: 0.15,
   });
   private readonly matTrunk = new THREE.MeshStandardMaterial({
-    color: 0x3a2814, map: tiled(TEX_WOOD, 2), normalMap: tiled(TEX_WOOD_N, 2),
+    color: 0x6a4828, map: tiled(TEX_WOOD, 2), normalMap: tiled(TEX_WOOD_N, 2),
     roughness: 0.95, metalness: 0,
-  });
-  private readonly matLeaves = new THREE.MeshStandardMaterial({
-    color: 0x1c2410, roughness: 1.0, metalness: 0,
+    emissive: new THREE.Color(0x1a1008), emissiveIntensity: 0.6,
   });
   // 깃대·전봇대 — 금속 광택
   private readonly matPole = new THREE.MeshStandardMaterial({
@@ -375,11 +374,11 @@ export class MapBuilder {
     // 잎 텍스처 한 번만 생성 — 공유
     const foliageTex = makeFoliageTexture(256);
 
-    // 잎 머티리얼 3종 (수종 다양화) — 텍스처 공유, 색만 차이
+    // 잎 머티리얼 3종 — 색 강하게 + emissive 살려서 야간에도 시인성 확보
     const leafMats = [
-      new THREE.MeshStandardMaterial({ color: 0x4a7028, map: foliageTex, roughness: 1.0, metalness: 0, emissive: new THREE.Color(0x0a1408), emissiveIntensity: 0.25 }),
-      new THREE.MeshStandardMaterial({ color: 0x5a8030, map: foliageTex, roughness: 1.0, metalness: 0, emissive: new THREE.Color(0x0a1408), emissiveIntensity: 0.25 }),
-      new THREE.MeshStandardMaterial({ color: 0x3a5820, map: foliageTex, roughness: 1.0, metalness: 0, emissive: new THREE.Color(0x080e06), emissiveIntensity: 0.20 }),
+      new THREE.MeshStandardMaterial({ color: 0xb0c060, map: foliageTex, roughness: 0.95, metalness: 0, emissive: new THREE.Color(0x3a4a18), emissiveIntensity: 1.1 }),
+      new THREE.MeshStandardMaterial({ color: 0xc0d870, map: foliageTex, roughness: 0.95, metalness: 0, emissive: new THREE.Color(0x4a5820), emissiveIntensity: 1.2 }),
+      new THREE.MeshStandardMaterial({ color: 0x90a850, map: foliageTex, roughness: 0.95, metalness: 0, emissive: new THREE.Color(0x2e3a14), emissiveIntensity: 0.95 }),
     ];
 
     positions.forEach(([x, z], i) => {
@@ -1081,7 +1080,7 @@ export class MapBuilder {
   private overturnedBus(
     x: number, y: number, z: number,
     mat: THREE.MeshStandardMaterial,
-    glassMat: THREE.MeshStandardMaterial,
+    _glassMat: THREE.MeshStandardMaterial,
     tilt: number,
   ): void {
     const body = new THREE.Mesh(new THREE.BoxGeometry(2.6, 3.2, 10.5), mat);

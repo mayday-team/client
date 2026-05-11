@@ -93,16 +93,16 @@ export function makeFoliageTexture(size = 256): THREE.CanvasTexture {
   c.width = c.height = size;
   const ctx = c.getContext("2d")!;
 
-  // 베이스: 짙은 녹색
-  ctx.fillStyle = "rgb(30, 50, 24)";
+  // 베이스: 밝은 중간 녹색 — 머티리얼 color가 곱해지므로 너무 어두우면 검게 됨
+  ctx.fillStyle = "rgb(140, 175, 95)";
   ctx.fillRect(0, 0, size, size);
 
-  // 잎사귀 모양 (작은 타원 수백 개)
+  // 잎사귀 모양 (작은 타원 수백 개) — 베이스보다 약간 밝거나 어둡게 변동
   const leafColors = [
-    "rgba(45, 80, 28, 0.7)",
-    "rgba(60, 100, 36, 0.6)",
-    "rgba(35, 65, 22, 0.8)",
-    "rgba(75, 110, 40, 0.5)",
+    "rgba(170, 200, 110, 0.65)",
+    "rgba(115, 150, 80, 0.65)",
+    "rgba(190, 215, 130, 0.55)",
+    "rgba(95, 130, 65, 0.75)",
   ];
   for (let i = 0; i < 600; i++) {
     const x = Math.random() * size;
@@ -118,9 +118,9 @@ export function makeFoliageTexture(size = 256): THREE.CanvasTexture {
     ctx.fill();
     ctx.restore();
   }
-  // 어두운 그림자 점
-  for (let i = 0; i < 150; i++) {
-    ctx.fillStyle = `rgba(15, 25, 10, ${0.3 + Math.random() * 0.3})`;
+  // 어두운 그림자 점 — 너무 검지 않게
+  for (let i = 0; i < 90; i++) {
+    ctx.fillStyle = `rgba(55, 75, 30, ${0.25 + Math.random() * 0.25})`;
     ctx.beginPath();
     ctx.arc(Math.random() * size, Math.random() * size, 2 + Math.random() * 4, 0, Math.PI * 2);
     ctx.fill();
