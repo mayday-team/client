@@ -259,33 +259,64 @@ export class HUD {
         display:flex;flex-direction:column;align-items:center;justify-content:center;
         text-align:center;gap:0;
         font-family:'Noto Serif KR','Nanum Myeongjo',Georgia,serif;
+        overflow-y:auto;
       ">
-        <div style="width:1px;height:50px;background:linear-gradient(to bottom,transparent,#6a1a1a);margin-bottom:32px;"></div>
+        <!-- 어두운 오버레이 -->
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,0.72);pointer-events:none;"></div>
 
-        <p style="font-size:12px;letter-spacing:6px;color:#6a1a1a;margin-bottom:28px;">1980 · 5 · 27 · 새벽</p>
+        <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;padding:40px 24px;max-width:520px;width:100%;">
 
-        <p style="font-size:22px;font-weight:300;letter-spacing:3px;color:#c8b89a;line-height:2;margin-bottom:24px;">
-          도청은 함락되었습니다.<br>
-          <span style="font-size:14px;color:#7a6858;letter-spacing:2px;">${timeStr}간 저항했습니다.</span>
-        </p>
+          <div style="width:1px;height:40px;background:linear-gradient(to bottom,transparent,#6a1a1a);margin-bottom:24px;"></div>
 
-        <div style="width:160px;height:1px;background:linear-gradient(to right,transparent,#4a3020,transparent);margin-bottom:28px;"></div>
+          <p style="font-size:11px;letter-spacing:6px;color:#6a1a1a;margin-bottom:8px;">1980 · 5 · 27 · 새벽 4시</p>
+          <p style="font-size:10px;letter-spacing:4px;color:#3a2a20;margin-bottom:24px;">그날의 기록</p>
 
-        <p style="font-size:14px;font-weight:300;color:#8a7860;line-height:2.4;letter-spacing:1px;max-width:380px;margin-bottom:36px;">
-          그들은 알고 있었습니다.<br>
-          이길 수 없다는 것을.<br>
-          <span style="color:#5a4a38;">그럼에도 떠나지 않았습니다.</span>
-        </p>
+          <p style="font-size:20px;font-weight:300;letter-spacing:3px;color:#c8b89a;line-height:1.8;margin-bottom:6px;">
+            도청은 함락되었습니다.
+          </p>
+          <p style="font-size:13px;color:#7a6858;letter-spacing:2px;margin-bottom:28px;">${timeStr}간 저항했습니다.</p>
 
-        <p style="font-size:11px;color:#3a3028;letter-spacing:3px;margin-bottom:40px;">
-          대한민국 민주주의를 위해 희생된 모든 이를 기억합니다.
-        </p>
+          <div style="width:140px;height:1px;background:linear-gradient(to right,transparent,#4a3020,transparent);margin-bottom:28px;"></div>
 
-        <div style="width:1px;height:30px;background:linear-gradient(to bottom,#6a1a1a,transparent);margin-bottom:28px;"></div>
+          <!-- 역사적 사실 설명 -->
+          <p style="font-size:13px;font-weight:300;color:#8a7860;line-height:2.2;letter-spacing:1px;max-width:440px;margin-bottom:20px;">
+            새벽 4시, 3천여 명의 계엄군이 전남도청을 사방에서 포위했습니다.<br>
+            전차와 장갑차, 헬기가 동원된 작전이었습니다.
+          </p>
 
-        <p style="font-size:10px;color:#2a2420;letter-spacing:4px;cursor:pointer;" id="restart-hint">
-          클릭하여 다시 돌아가기
-        </p>
+          <p style="font-size:13px;font-weight:300;color:#8a7860;line-height:2.2;letter-spacing:1px;max-width:440px;margin-bottom:28px;">
+            마지막까지 자리를 지킨 시민군은 200여 명.<br>
+            그들은 무기를 내려놓을 수 있었지만, 떠나지 않았습니다.<br>
+            <span style="color:#5a4a38;">그들은 알고 있었습니다 — 이길 수 없다는 것을.</span>
+          </p>
+
+          <div style="width:140px;height:1px;background:linear-gradient(to right,transparent,#4a3020,transparent);margin-bottom:28px;"></div>
+
+          <!-- 희생·의미 -->
+          <p style="font-size:12px;color:#6a5848;letter-spacing:2px;line-height:2.4;margin-bottom:8px;">
+            5.18 광주민주화운동 공식 사망·행방불명 — <span style="color:#8a4a3a;">607명</span><br>
+            총상 및 부상자 — 3,000여 명
+          </p>
+          <p style="font-size:11px;color:#4a3a30;letter-spacing:2px;line-height:2.2;max-width:400px;margin-bottom:28px;">
+            이 항쟁이 씨앗이 되어 1987년 6월 민주항쟁으로 이어졌습니다.<br>
+            2011년, 유네스코는 5.18 기록물을 세계기록유산으로 등재했습니다.
+          </p>
+
+          <div style="width:140px;height:1px;background:linear-gradient(to right,transparent,#4a3020,transparent);margin-bottom:28px;"></div>
+
+          <p style="font-size:13px;font-weight:300;color:#9a8870;letter-spacing:2px;line-height:2.4;margin-bottom:36px;">
+            그들의 이름을 기억하는 것,<br>
+            그것이 민주주의를 지키는 일입니다.
+          </p>
+
+          <div style="width:1px;height:24px;background:linear-gradient(to bottom,#6a1a1a,transparent);margin-bottom:20px;"></div>
+
+          <p style="font-size:10px;color:#2a2420;letter-spacing:4px;cursor:pointer;transition:color 0.3s;" id="restart-hint"
+            onmouseover="this.style.color='#7a6a58'" onmouseout="this.style.color='#2a2420'">
+            다시 체험하기 ▶
+          </p>
+
+        </div>
       </div>`;
 
     this.el.addEventListener("click", this.onRestartClick, { once: true });

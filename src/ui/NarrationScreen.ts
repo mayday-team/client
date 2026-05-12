@@ -1,11 +1,20 @@
-const SLIDES: { date: string; lines: string[]; emphasis?: boolean }[] = [
+import nar1 from "../assets/img/nar1.png";
+import nar2 from "../assets/img/nar2.png";
+import nar3 from "../assets/img/nar3.png";
+import nar4 from "../assets/img/nar4.png";
+import nar5 from "../assets/img/nar5.png";
+import nar6 from "../assets/img/nar6.png";
+
+const SLIDES: { date: string; lines: string[]; emphasis?: boolean; bg?: string }[] = [
   {
     date: "1980년 5월 18일",
     lines: ["광주 시민들이 군부 독재에 맞서 일어섰다.", "공수부대가 시민에게 총을 겨눴다."],
+    bg: nar1,
   },
   {
     date: "",
     lines: ["계엄군의 총구 앞에서도 시민들은 물러서지 않았다.", "열흘간의 항쟁 — 수백 명이 쓰러졌다."],
+    bg: nar2,
   },
   {
     date: "1980년 5월 26일 밤",
@@ -14,19 +23,23 @@ const SLIDES: { date: string; lines: string[]; emphasis?: boolean }[] = [
       "\"우리는 최후까지 싸울 것입니다.\"",
       "마지막 도청 방송이 울려 퍼졌다.",
     ],
+    bg: nar3,
   },
   {
     date: "",
     lines: ["도청을 떠나라는 권고를 들으면서도", "200여 명의 시민군은 남기로 했다.", "그들은 알고 있었다 — 이길 수 없다는 것을."],
+    bg: nar4,
   },
   {
     date: "1980년 5월 27일 새벽 4시",
     lines: ["계엄군 탱크가 전남도청을 향해 움직였다.", "헬기가 하늘을 뒤덮었다."],
+    bg: nar5,
   },
   {
     date: "",
     lines: ["당신은", "그날, 그곳에 있습니다."],
     emphasis: true,
+    bg: nar6,
   },
 ];
 
@@ -52,8 +65,28 @@ const CSS = `
   cursor: default;
 }
 
+#narr-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity ${FADE_MS}ms ease;
+}
+
+#narr-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+}
+
 /* ── Loading phase ── */
 #narr-loading {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -113,6 +146,7 @@ const CSS = `
 #narr-slide {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -178,6 +212,7 @@ const CSS = `
   position: absolute;
   bottom: 32px;
   right: 36px;
+  z-index: 3;
   font-size: 10px;
   letter-spacing: 3px;
   color: #3a3028;
@@ -215,6 +250,8 @@ export async function playNarration(onComplete: () => void): Promise<void> {
   const root = document.createElement("div");
   root.id = "narration-root";
   root.innerHTML = `
+    <div id="narr-bg"></div>
+    <div id="narr-overlay"></div>
     <div id="narr-loading">
       <div class="narr-load-location">전 라 남 도 청</div>
       <div class="narr-load-title">1980 · 5 · 27</div>
@@ -230,6 +267,7 @@ export async function playNarration(onComplete: () => void): Promise<void> {
   `;
   document.body.appendChild(root);
 
+  const bgEl     = root.querySelector<HTMLElement>("#narr-bg")!;
   const loading  = root.querySelector<HTMLElement>("#narr-loading")!;
   const slide    = root.querySelector<HTMLElement>("#narr-slide")!;
   const ruleEl   = root.querySelector<HTMLElement>("#narr-rule")!;
@@ -255,6 +293,16 @@ export async function playNarration(onComplete: () => void): Promise<void> {
   // ── Narration slides ──
   if (!skipped) {
     for (const s of SLIDES) {
+      // 배경 이미지 교체: fade out → 이미지 변경 → fade in
+      if (s.bg) {
+        bgEl.style.opacity = "0";
+        await race(sleep(FADE_MS / 2));
+        bgEl.style.backgroundImage = `url('${s.bg}')`;
+        bgEl.style.opacity = "1";
+      } else {
+        bgEl.style.opacity = "0";
+      }
+
       // Set content
       dateEl.textContent = s.date;
       dateEl.classList.remove("visible");
