@@ -22,7 +22,13 @@ export class EntityManager {
   private troops = new Map<string, TroopState>();
   private dying: DyingTroop[] = [];
 
-  constructor(private scene: THREE.Scene) {}
+  constructor(private scene: THREE.Scene) {
+    window.addEventListener("troop:hit", (e) => {
+      const id = (e as CustomEvent<{ id: string }>).detail.id;
+      const state = this.troops.get(id);
+      if (state) state.hitFlash = 1.0;
+    });
+  }
 
   updateTroops(snapshots: TroopSnapshot[]): void {
     const activeIds = new Set(snapshots.map((t) => t.id));

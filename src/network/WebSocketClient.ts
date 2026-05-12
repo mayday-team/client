@@ -90,6 +90,9 @@ export class WebSocketClient {
 
       case "shot_result":
         store.setShotResult(msg.payload);
+        if (msg.payload.hit_troop_id) {
+          window.dispatchEvent(new CustomEvent("troop:hit", { detail: { id: msg.payload.hit_troop_id } }));
+        }
         break;
 
       case "troop_shot":
