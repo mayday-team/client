@@ -8,12 +8,44 @@ const CROSSHAIR = `
     <div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(255,255,255,0.8);transform:translateX(-50%);"></div>
   </div>`;
 
+const WARN_LINES: Record<string, string[]> = {
+  hp_critical: [
+    "쓰러지면 안 됩니다...",
+    "이대로 무너질 순 없습니다",
+    "끝까지 버텨야 합니다",
+  ],
+  hp_low: [
+    "동지여, 버텨야 합니다",
+    "도청을 지켜야 합니다",
+    "피가 흘러도 물러서지 않겠습니다",
+  ],
+  encirclement: [
+    "모든 출구가 막혔습니다",
+    "이제 물러설 곳이 없습니다",
+    "포위망이 완성되었습니다",
+  ],
+  pressure: [
+    "사방이 막혀오고 있습니다",
+    "포위가 좁혀듭니다",
+    "적이 사방에서 몰려오고 있습니다",
+  ],
+};
+
 export class HUD {
   private el: HTMLElement;
   private prologueShown = false;
   private hitOverlay: HTMLElement;
   private hitFadeTimer = 0;
   private prevHp = -1;
+
+  private warningEl!: HTMLElement;
+  private controlsEl!: HTMLElement;
+  private controlsVisible = false;
+  private prevHpPct = 100;
+  private prevPressure = 0;
+  private prevEncirclement = 0;
+  private warnCooldown = new Map<string, number>();
+  private warnAutoHideTimer = 0;
 
   constructor() {
     const el = document.getElementById("hud");
@@ -34,6 +66,85 @@ export class HUD {
     document.body.appendChild(this.hitOverlay);
 
     window.addEventListener("player:hit", this.onHit);
+
+    const warnStyle = document.createElement("style");
+    warnStyle.textContent = `
+      @keyframes warn-in {
+        0%   { opacity:0; transform:translateX(-50%) scale(0.90); }
+        20%  { opacity:1; transform:translateX(-50%) scale(1.04); }
+        40%  { transform:translateX(-50%) scale(0.98); }
+        100% { opacity:1; transform:translateX(-50%) scale(1); }
+      }
+      @keyframes warn-pulse {
+        0%,100% { opacity:1; }
+        45%     { opacity:0.55; }
+      }
+      @keyframes warn-out {
+        to { opacity:0; }
+      }
+      #hud-warning { position:fixed; top:50%; left:50%; transform:translateX(-50%); text-align:center; pointer-events:none; z-index:9997; opacity:0; min-width:280px; }
+      #hud-warning.show { animation: warn-in 0.22s ease-out forwards, warn-pulse 0.45s ease-in-out 3 0.22s; }
+      #hud-warning.hide { animation: warn-out 0.55s ease forwards; }
+      .warn-rule { height:1px; margin:8px auto; width:180px; }
+      .warn-rule.amber { background:linear-gradient(to right,transparent,#c8903a,transparent); }
+      .warn-rule.red   { background:linear-gradient(to right,transparent,#c83030,transparent); }
+      .warn-text {
+        font-family:'Noto Serif KR','Nanum Myeongjo',Georgia,serif;
+        font-size:26px; font-style:italic; letter-spacing:4px;
+        padding:12px 32px; background:rgba(0,0,0,0.65); border:1px solid;
+        white-space:nowrap;
+      }
+      .warn-text.amber { color:#d4a050; border-color:rgba(200,140,50,0.3); text-shadow:0 0 24px rgba(200,120,40,0.9),0 2px 6px rgba(0,0,0,0.9); }
+      .warn-text.red   { color:#e06060; border-color:rgba(200,60,60,0.3);  text-shadow:0 0 24px rgba(220,60,60,0.9), 0 2px 6px rgba(0,0,0,0.9); }
+    `;
+    document.head.appendChild(warnStyle);
+
+    this.warningEl = document.createElement("div");
+    this.warningEl.id = "hud-warning";
+    this.warningEl.innerHTML = `
+      <div class="warn-rule amber" id="warn-rule-top"></div>
+      <div class="warn-text amber" id="warn-text"></div>
+      <div class="warn-rule amber" id="warn-rule-bottom"></div>
+    `;
+    document.body.appendChild(this.warningEl);
+
+    this.controlsEl = document.createElement("div");
+    Object.assign(this.controlsEl.style, {
+      position: "fixed",
+      inset: "0",
+      background: "rgba(0,0,0,0.82)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      opacity: "0",
+      pointerEvents: "none",
+      transition: "opacity 0.3s ease",
+      zIndex: "9996",
+      fontFamily: "'Noto Serif KR', 'Nanum Myeongjo', Georgia, serif",
+    });
+    this.controlsEl.innerHTML = `
+      <div style="
+        border:1px solid #3a2a1a;
+        padding:40px 52px;
+        min-width:340px;
+        text-align:center;
+        background:rgba(8,6,4,0.9);
+      ">
+        <p style="font-size:11px;letter-spacing:6px;color:#6a1a1a;margin-bottom:8px;">조 작 법</p>
+        <div style="width:60px;height:1px;background:linear-gradient(to right,transparent,#4a2a1a,transparent);margin:0 auto 28px;"></div>
+        <table style="border-collapse:collapse;width:100%;font-size:13px;color:#a09070;letter-spacing:1px;line-height:2.4;">
+          <tr><td style="text-align:right;padding-right:20px;color:#6a5840;">W / A / S / D</td><td style="text-align:left;color:#8a7858;">이동</td></tr>
+          <tr><td style="text-align:right;padding-right:20px;color:#6a5840;">마우스 드래그</td><td style="text-align:left;color:#8a7858;">시점 회전</td></tr>
+          <tr><td style="text-align:right;padding-right:20px;color:#6a5840;">좌클릭</td><td style="text-align:left;color:#8a7858;">발사</td></tr>
+          <tr><td style="text-align:right;padding-right:20px;color:#6a5840;">R</td><td style="text-align:left;color:#8a7858;">재장전</td></tr>
+          <tr><td style="text-align:right;padding-right:20px;color:#6a5840;">Tab</td><td style="text-align:left;color:#8a7858;">조작법 열기 / 닫기</td></tr>
+        </table>
+        <div style="width:60px;height:1px;background:linear-gradient(to right,transparent,#4a2a1a,transparent);margin:28px auto 20px;"></div>
+        <p style="font-size:10px;color:#3a2a18;letter-spacing:3px;">Tab 키로 닫기</p>
+      </div>`;
+    document.body.appendChild(this.controlsEl);
+
+    window.addEventListener("keydown", this.onTabKey);
 
     this.render();
     useGameStore.subscribe(() => this.render());
@@ -103,6 +214,7 @@ export class HUD {
       phaseTroopsKilled,
       phaseTroopsTotal,
       pressureLevel,
+      encirclementLevel,
       wsConnected,
       inCover,
       coverHp,
@@ -116,8 +228,13 @@ export class HUD {
       const serverHp = player?.hp ?? 0;
       hp = inCover ? coverHp : serverHp;
       maxHp = player?.max_hp ?? 100;
-      if (!inCover && this.prevHp > 0 && serverHp < this.prevHp) this.onHit();
-      this.prevHp = serverHp;
+      if (inCover) {
+        // 엄폐 중: prevHp를 coverHp로 유지 → 해제 시 누적 피해가 정상 감지됨
+        this.prevHp = coverHp;
+      } else {
+        if (this.prevHp > 0 && serverHp < this.prevHp) this.onHit();
+        this.prevHp = serverHp;
+      }
     } else {
       hp = clientHp;
       maxHp = 100;
@@ -131,9 +248,12 @@ export class HUD {
     const hpPct  = Math.max(0, Math.min(100, (hp / maxHp) * 100));
     const hpColor = hpPct > 50 ? "#4caf50" : hpPct > 25 ? "#ff9800" : "#f44336";
 
-    const phaseLabel = `페이즈 ${displayPhase}`;
-    const phaseCritical = displayPhase >= 3;
-    const pressurePct = Math.round(pressureLevel * 100);
+    const phase = displayPhase ?? 1;
+    const troopsKilled = phaseTroopsKilled ?? 0;
+    const troopsTotal = phaseTroopsTotal ?? 0;
+    const phaseLabel = `페이즈 ${phase}`;
+    const phaseCritical = phase >= 3;
+    const pressurePct = Math.round((pressureLevel ?? 0) * 100);
 
     const mins = Math.floor(survivalSec / 60);
     const secs = String(survivalSec % 60).padStart(2, "0");
@@ -172,7 +292,7 @@ export class HUD {
         ">
           <span>${phaseLabel}</span>
           <span style="font-size:11px;letter-spacing:2px;color:${phaseCritical ? "#ffd0d0" : "#a89068"};">
-            처치 ${phaseTroopsKilled} / ${phaseTroopsTotal}
+            처치 ${troopsKilled} / ${troopsTotal}
           </span>
         </div>
 
@@ -244,6 +364,8 @@ export class HUD {
           </div>
         </div>` : ""}
     `;
+
+    this.checkWarnings(hpPct, pressureLevel, encirclementLevel);
   }
 
   private renderSessionEnded(ended: NonNullable<ReturnType<typeof useGameStore.getState>["sessionEnded"]>): void {
@@ -357,4 +479,66 @@ export class HUD {
     useGameStore.getState().quickRestart();
     window.dispatchEvent(new CustomEvent("game:restart"));
   };
+
+  private onTabKey = (e: KeyboardEvent): void => {
+    if (e.code !== "Tab") return;
+    e.preventDefault();
+    const { uiPhase } = useGameStore.getState();
+    if (uiPhase !== "playing") return;
+    this.controlsVisible = !this.controlsVisible;
+    this.controlsEl.style.opacity = this.controlsVisible ? "1" : "0";
+    this.controlsEl.style.pointerEvents = this.controlsVisible ? "auto" : "none";
+  };
+
+  private checkWarnings(hpPct: number, pressure: number, encirclement: number): void {
+    const now = Date.now();
+
+    if (hpPct <= 20 && this.prevHpPct > 20) {
+      this.triggerWarning("hp_critical", now, 20_000);
+    } else if (hpPct <= 40 && this.prevHpPct > 40) {
+      this.triggerWarning("hp_low", now, 25_000);
+    }
+
+    if (encirclement >= 0.8 && this.prevEncirclement < 0.8) {
+      this.triggerWarning("encirclement", now, 30_000);
+    } else if (pressure >= 0.7 && this.prevPressure < 0.7) {
+      this.triggerWarning("pressure", now, 30_000);
+    }
+
+    this.prevHpPct = hpPct;
+    this.prevPressure = pressure;
+    this.prevEncirclement = encirclement;
+  }
+
+  private triggerWarning(type: string, now: number, cooldownMs: number): void {
+    const lastShown = this.warnCooldown.get(type) ?? 0;
+    if (now - lastShown < cooldownMs) return;
+    this.warnCooldown.set(type, now);
+
+    const lines = WARN_LINES[type];
+    const text = lines[Math.floor(Math.random() * lines.length)];
+    const isCritical = type === "hp_critical" || type === "encirclement";
+    const tone = isCritical ? "red" : "amber";
+
+    const textEl  = this.warningEl.querySelector<HTMLElement>("#warn-text")!;
+    const ruleTop = this.warningEl.querySelector<HTMLElement>("#warn-rule-top")!;
+    const ruleBot = this.warningEl.querySelector<HTMLElement>("#warn-rule-bottom")!;
+
+    textEl.textContent = `"${text}"`;
+    [textEl, ruleTop, ruleBot].forEach(el => {
+      el.className = el.className.replace(/\b(amber|red)\b/g, tone);
+    });
+
+    clearTimeout(this.warnAutoHideTimer);
+    this.warningEl.classList.remove("show", "hide");
+    void this.warningEl.offsetWidth; // reflow → animation restart
+    this.warningEl.classList.add("show");
+
+    // warn-in(0.22s) + warn-pulse(0.45s × 3 = 1.35s) = ~1.6s 이후 표시 유지
+    this.warnAutoHideTimer = window.setTimeout(() => {
+      this.warningEl.classList.remove("show");
+      this.warningEl.classList.add("hide");
+      window.setTimeout(() => this.warningEl.classList.remove("hide"), 600);
+    }, 3200);
+  }
 }

@@ -47,6 +47,8 @@ export class Game {
 
   // 엄폐 상태 추적
   private wasInCover = false;
+  private coverExitFrames = 0;            // 엄폐 해제 디바운스 카운터
+  private static readonly COVER_EXIT_DELAY = 6; // ~100ms @60fps
 
   private _lookDir = new THREE.Vector3();
 
@@ -237,15 +239,22 @@ export class Game {
 
     // ── 엄폐 감지 — 창문이 아닌 벽 뒤면 서버 HP 동결 ──────────────────────
     const nowInCover = this.isInCover(cam.position);
-    if (nowInCover !== this.wasInCover) {
-      if (nowInCover) {
-        // 엄폐 진입: 현재 HP를 동결값으로 저장
+
+    if (nowInCover) {
+      // 엄폐 진입 또는 유지 — 즉시 반영, 디바운스 카운터 초기화
+      this.coverExitFrames = 0;
+      if (!this.wasInCover) {
         useGameStore.getState().setCoverState(true, player?.hp ?? 100);
-      } else {
-        // 엄폐 해제: 실제 서버 HP 복원
-        useGameStore.getState().setCoverState(false);
+        this.wasInCover = true;
       }
-      this.wasInCover = nowInCover;
+    } else if (this.wasInCover) {
+      // 엄폐 해제 — 경계 근처 oscillation 방지: 6프레임 연속 노출 후 해제
+      this.coverExitFrames++;
+      if (this.coverExitFrames >= Game.COVER_EXIT_DELAY) {
+        useGameStore.getState().setCoverState(false);
+        this.wasInCover = false;
+        this.coverExitFrames = 0;
+      }
     }
 
     // ── Send input to server ──────────────────────────────────────────────
